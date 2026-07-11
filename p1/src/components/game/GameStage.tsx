@@ -70,6 +70,11 @@ type GenUiPanel =
   | { kind: "artifact_html"; html: string }
   | { kind: string; spec: unknown };
 
+// tool names must never reach the player's eyes even if the model slips
+const TOOL_LEAK_RE =
+  /\b(?:and\s+)?(?:render_scene|present_choices|show_ui|speak_as|update_state|start_qte|skill_check|end_story)\b[.,]?\s*/gi;
+const scrubCaption = (s: string) => s.replace(TOOL_LEAK_RE, "").replace(/\s{2,}/g, " ");
+
 export default function GameStage({ playthroughId }: { playthroughId: string }) {
   const audio = useLiveAudio();
   const sessionRef = useRef<Session | null>(null);
@@ -749,7 +754,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
               if (!captionTimerRef.current) {
                 captionTimerRef.current = setTimeout(() => {
                   captionTimerRef.current = null;
-                  setCaption(captionRef.current);
+                  setCaption(scrubCaption(captionRef.current));
                 }, 350);
               }
             }
@@ -761,9 +766,14 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
               // choices or fire provisional frames.
               const recentOut = (captionRef.current + " " + lastNarrationRef.current).toLowerCase();
               const words = heard.toLowerCase().split(/\s+/).filter((w) => w.length > 3);
+              const overlap = words.length
+                ? words.filter((w) => recentOut.includes(w)).length / words.length
+                : 0;
+              // tiered: short fragments echo at lower overlap (speaker bleed
+              // arrives in pieces); long utterances need near-total overlap
               const isEcho =
-                words.length >= 5 &&
-                words.filter((w) => recentOut.includes(w)).length / words.length >= 0.9;
+                (words.length >= 2 && words.length < 5 && overlap >= 0.65) ||
+                (words.length >= 5 && overlap >= 0.9);
               if (!isEcho) {
                 // player spoke: clear stale choices, mark for latency,
                 // accumulate for the director's social read + provisional frame
@@ -791,7 +801,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
                 clearTimeout(captionTimerRef.current);
                 captionTimerRef.current = null;
               }
-              setCaption(narration); // final full text, stable
+              setCaption(scrubCaption(narration)); // final full text, stable
               // reveal buffered choices ONLY once every queued clip has
               // finished playing — and only if the player hasn't already acted
               if (pendingChoicesRef.current) {
@@ -846,11 +856,19 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
     if (phase !== "live") return;
     if (!lastActivityRef.current) lastActivityRef.current = Date.now();
     const timer = setInterval(() => {
+      // audio still playing or queued counts as activity — the idle clock
+      // starts only once the pipeline has actually gone quiet
+      if (narratorSpeaking || queueRef.current?.drained === false) {
+        lastActivityRef.current = Date.now();
+      }
       const idleMs = Date.now() - lastActivityRef.current;
       if (
         idleMs > 14000 &&
         !nudgedRef.current &&
         !narratorSpeaking &&
+        // audio still queued or choices already on their way ≠ a stall
+        queueRef.current?.drained !== false &&
+        !pendingChoicesRef.current &&
         choices.length === 0 &&
         !qte &&
         !dice &&
@@ -863,7 +881,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
               role: "user",
               parts: [
                 {
-                  text: "[SYSTEM] The player seems unsure how to proceed. In one short line, re-establish the tension of the moment, then call present_choices with 2-4 options.",
+                  text: "[SYSTEM] Silent stage direction — never say this aloud: the player seems unsure. Speak ONE short in-fiction line re-establishing the tension, and put the choices on screen through your usual silent machinery.",
                 },
               ],
             },
@@ -1064,6 +1082,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
         imageUrl={imageUrl}
         caption={speakerInfo?.line ? `“${speakerInfo.line}”` : caption}
         speaker={speakerInfo?.speaker ?? null}
+        raiseCaption={!qte && !dice && !ending && (choices.length > 0 || !narratorSpeaking)}
         mood={mood}
         generating={generating}
       />

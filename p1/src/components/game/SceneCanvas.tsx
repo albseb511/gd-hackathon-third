@@ -10,6 +10,8 @@ interface SceneCanvasProps {
   // who is talking right now: null/undefined = the narrator, else a
   // character name rendered as a chip above the line
   speaker?: string | null;
+  // lift the caption clear of the choice/input bar when it's on screen
+  raiseCaption?: boolean;
   mood?: Mood;
   generating?: boolean;
 }
@@ -32,7 +34,7 @@ const MOOD_TINT: Record<Mood, string> = {
   item_closeup: "radial-gradient(ellipse at 50% 45%, transparent 35%, rgba(50,35,8,0.45) 100%)",
 };
 
-export default function SceneCanvas({ imageUrl, caption, speaker, mood, generating }: SceneCanvasProps) {
+export default function SceneCanvas({ imageUrl, caption, speaker, raiseCaption, mood, generating }: SceneCanvasProps) {
   const [layers, setLayers] = useState<Layer[]>([]);
   const counterRef = useRef(0);
 
@@ -130,8 +132,11 @@ export default function SceneCanvas({ imageUrl, caption, speaker, mood, generati
           No key on the text node: it must update in place, not remount. */}
       {caption && (
         <div
-          className="absolute inset-x-0 bottom-0 flex justify-center px-5 pb-8 pt-24 pointer-events-none"
+          className="absolute inset-x-0 bottom-0 flex justify-center px-5 pt-24 pointer-events-none"
           style={{
+            // clear the choice/input bar instead of colliding with it
+            paddingBottom: raiseCaption ? "9.5rem" : "2rem",
+            transition: "padding-bottom 300ms ease",
             background:
               "linear-gradient(to top, rgba(6,5,4,0.82) 0%, rgba(6,5,4,0.5) 55%, transparent 100%)",
             animation: "vn-rise-in 450ms ease-out both",

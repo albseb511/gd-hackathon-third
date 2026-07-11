@@ -125,6 +125,10 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
   const inputEpochRef = useRef(0); // bumps on player input; stale reveals abort
   const [narratorSpeaking, setNarratorSpeaking] = useState(false);
   const [speakerInfo, setSpeakerInfo] = useState<SpeakerInfo | null>(null);
+  // live "YOU …" caption of the player's own speech, and a thinking pulse
+  // while the story generates its reply
+  const [playerCaption, setPlayerCaption] = useState("");
+  const [awaiting, setAwaiting] = useState(false);
   const [micDevice, setMicDevice] = useState<string | null>(null);
   useEffect(() => {
     const raf = requestAnimationFrame(() =>
@@ -148,6 +152,8 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
   // caption updates are throttled to kill per-chunk layout jank
   const captionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastNarrationRef = useRef(""); // previous turn's text, for echo detection
+  const playerCaptionRef = useRef("");
+  const playerCaptionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // opening gate: hold narrator audio until the first scene image is visible
   const audioGateRef = useRef<{ active: boolean; queue: string[] }>({
     active: true,
@@ -902,6 +908,12 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
               } else {
                 queueRef.current?.pushLive(part.inlineData.data);
               }
+              // the story is answering — drop the "YOU …" caption + thinking pulse
+              if (playerCaptionRef.current) {
+                playerCaptionRef.current = "";
+                setPlayerCaption("");
+              }
+              setAwaiting(false);
               lastActivityRef.current = Date.now();
               nudgedRef.current = false;
               // narrator has started answering — the player's words are final
@@ -946,6 +958,15 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
                 utteranceRef.current = (utteranceRef.current + " " + heard).slice(-300);
                 provisionalFiredRef.current = false;
                 setChoices([]);
+                // live "YOU …" feedback + a thinking pulse until the reply lands
+                playerCaptionRef.current = (playerCaptionRef.current + " " + heard).slice(-240);
+                setAwaiting(true);
+                if (!playerCaptionTimerRef.current) {
+                  playerCaptionTimerRef.current = setTimeout(() => {
+                    playerCaptionTimerRef.current = null;
+                    setPlayerCaption(playerCaptionRef.current.trim());
+                  }, 180);
+                }
               }
             }
             if (m.toolCall) handleToolCall(m);
@@ -954,6 +975,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
               persistBeat({ sessionHandle: m.sessionResumptionUpdate.newHandle });
             }
             if (sc?.turnComplete) {
+              setAwaiting(false); // reply landed (or turn ended) — stop the pulse
               const narration = captionRef.current.trim();
               if (narration) lastNarrationRef.current = narration;
               captionRef.current = "";
@@ -1101,7 +1123,17 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
           setNarratorSpeaking(s);
           mixerRef.current?.setSpeaking(s);
         };
-        q.onSpeaker = setSpeakerInfo;
+        q.onSpeaker = (info) => {
+          if (info) {
+            // a character is now speaking — the player's caption gives way
+            if (playerCaptionRef.current) {
+              playerCaptionRef.current = "";
+              setPlayerCaption("");
+            }
+            setAwaiting(false);
+          }
+          setSpeakerInfo(info);
+        };
         q.onClipResult = (ok, speaker) => {
           console.info(`[voice] ${speaker}: clip ${ok ? "played" : "MISSED"}`);
           persistBeat({ marks: [{ name: ok ? "tts-played" : "tts-missed", ms: 0 }] });
@@ -1172,6 +1204,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
     utteranceRef.current = text;
     provisionalFiredRef.current = false;
     setChoices([]);
+    setAwaiting(true); // thinking pulse until the story replies
 
     // the player's move is spoken in their own character's voice
     if (VOICE_PLAYER_LINES && queueRef.current) {
@@ -1323,12 +1356,34 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
     <div className="fixed inset-0 bg-black overflow-hidden">
       <SceneCanvas
         imageUrl={imageUrl}
-        caption={speakerInfo?.line ? `“${speakerInfo.line}”` : caption}
-        speaker={speakerInfo?.speaker ?? null}
+        caption={
+          playerCaption && !speakerInfo && !narratorSpeaking
+            ? playerCaption
+            : speakerInfo?.line
+              ? `“${speakerInfo.line}”`
+              : caption
+        }
+        speaker={
+          playerCaption && !speakerInfo && !narratorSpeaking
+            ? "You"
+            : (speakerInfo?.speaker ?? null)
+        }
         raiseCaption={!qte && !dice && !ending && !outputBusy}
         mood={mood}
         generating={generating}
       />
+
+      {/* thinking pulse — the wait between the player acting and the reply */}
+      {awaiting && !narratorSpeaking && !speakerInfo && (
+        <div className="pointer-events-none absolute inset-x-0 top-1/2 z-10 flex justify-center">
+          <div className="flex items-center gap-2 rounded-full bg-black/45 px-4 py-2 backdrop-blur">
+            <span className="h-2 w-2 rounded-full bg-amber-300/90 animate-pulse" />
+            <span className="text-xs tracking-widest text-zinc-300 uppercase">
+              the story turns
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* HP + mic status */}
       <div className="absolute top-3 left-3 right-3 flex justify-between items-center text-xs z-20">

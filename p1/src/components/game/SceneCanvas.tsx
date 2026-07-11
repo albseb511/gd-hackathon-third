@@ -147,23 +147,34 @@ export default function SceneCanvas({ imageUrl, caption, speaker, raiseCaption, 
             className="max-w-xl w-full flex flex-col justify-end items-center overflow-hidden"
             style={{ height: "7.6em" }}
           >
-            {speaker && (
-              <span
-                className="mb-1 rounded-full border px-3 py-0.5 text-[11px] tracking-[0.2em] uppercase"
-                style={{
-                  color: "var(--vn-gold-bright, #f0d090)",
-                  borderColor: "rgba(217,179,108,0.5)",
-                  background: "rgba(0,0,0,0.55)",
-                }}
-              >
-                {speaker}
-              </span>
-            )}
+            {speaker &&
+              (() => {
+                // the player's own speech gets a cool steel chip; everyone
+                // else (narrator asides, characters) keeps the warm gold
+                const isYou = speaker.toLowerCase() === "you";
+                return (
+                  <span
+                    className="mb-1 rounded-full border px-3 py-0.5 text-[11px] tracking-[0.2em] uppercase"
+                    style={{
+                      color: isYou ? "#a5c8e1" : "var(--vn-gold-bright, #f0d090)",
+                      borderColor: isYou
+                        ? "rgba(140,180,210,0.5)"
+                        : "rgba(217,179,108,0.5)",
+                      background: "rgba(0,0,0,0.55)",
+                    }}
+                  >
+                    {speaker}
+                  </span>
+                );
+              })()}
             <p
               className="text-center text-[17px] leading-relaxed sm:text-lg"
               style={{
                 fontFamily: "var(--vn-font-display)",
-                color: "var(--vn-paper)",
+                color:
+                  speaker?.toLowerCase() === "you"
+                    ? "rgba(210,226,238,0.92)"
+                    : "var(--vn-paper)",
                 textShadow: "0 1px 8px rgba(0,0,0,0.9)",
                 fontStyle: speaker ? "italic" : "normal",
               }}

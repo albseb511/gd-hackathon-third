@@ -32,7 +32,7 @@ export default function BranchMap({ aggregate, playerPath, height = 480 }: Props
     }
     // endings and improvised nodes go to the last column
     const cols = acts.length || 1;
-    const W = Math.max(720, cols * 220);
+    const W = Math.max(760, cols * 260);
     const H = height;
     const playerSet = new Set(playerPath ?? []);
 
@@ -49,9 +49,9 @@ export default function BranchMap({ aggregate, playerPath, height = 480 }: Props
       colNodes.forEach((n, row) => {
         positioned.set(n.beatId, {
           beatId: n.beatId,
-          label: n.label,
+          label: n.label.length > 26 ? `${n.label.slice(0, 25)}…` : n.label,
           visits: n.visits,
-          x: 110 + col * ((W - 220) / Math.max(1, cols - 1)),
+          x: 140 + col * ((W - 280) / Math.max(1, cols - 1)),
           y: 50 + (row + 0.5) * ((H - 100) / colNodes.length),
           onPlayerPath: playerSet.has(n.beatId),
           visitedByPlayer: playerSet.has(n.beatId),

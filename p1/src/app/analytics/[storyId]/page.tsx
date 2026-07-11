@@ -86,6 +86,13 @@ export default async function AnalyticsPage({
               </tr>
             </thead>
             <tbody>
+              {data.liveLatency.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="py-3 text-zinc-600">
+                    no live plays recorded here yet — numbers appear as people play
+                  </td>
+                </tr>
+              )}
               {(data.liveLatency as { step: string; p50: number; p95: number; n: number }[])
                 .sort((a, b) => b.n - a.n)
                 .map((l) => (

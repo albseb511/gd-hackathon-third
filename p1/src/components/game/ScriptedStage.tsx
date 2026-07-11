@@ -17,6 +17,7 @@ import CastPanel from "@/components/game/CastPanel";
 import Mash from "@/components/game/qte/Mash";
 import TimedTap from "@/components/game/qte/TimedTap";
 import Sequence from "@/components/game/qte/Sequence";
+import { useChoiceSpeech } from "@/components/audio/useChoiceSpeech";
 import { Mood, PlayState, StoryOutline, CharacterSheet } from "@/lib/storyEngine/types";
 import { loadScriptedStory, ScriptedStory, ScriptedBeat } from "@/lib/scriptedStory";
 
@@ -206,6 +207,15 @@ export default function ScriptedStage({
     [playBeat],
   );
 
+  // speak-your-choice (browser STT, no Live session / Gemini cost). Only
+  // listens while the choices are on screen and playback isn't paused.
+  const voiceActive = !qte && !ending && choices.length > 0 && !paused;
+  const { supported: voiceSupported, listening: micListening } = useChoiceSpeech(
+    voiceActive,
+    choices,
+    onChoose,
+  );
+
   const onQteDone = useCallback(
     (r: { result: "win" | "lose" }) => {
       const beat = scriptRef.current?.beats[beatIdRef.current];
@@ -286,8 +296,20 @@ export default function ScriptedStage({
             </button>
           )}
           <div className="flex items-center gap-2 bg-black/40 rounded-full px-3 py-1.5 backdrop-blur text-zinc-300">
-            <span className={`w-2 h-2 rounded-full ${outputBusy ? "bg-emerald-400 animate-pulse" : "bg-zinc-600"}`} />
-            {speakerInfo ? speakerInfo.speaker : outputBusy ? "…" : "your move"}
+            <span
+              className={`w-2 h-2 rounded-full ${
+                micListening ? "bg-rose-400 animate-pulse" : outputBusy ? "bg-emerald-400 animate-pulse" : "bg-zinc-600"
+              }`}
+            />
+            {speakerInfo
+              ? speakerInfo.speaker
+              : micListening
+                ? "listening…"
+                : outputBusy
+                  ? "…"
+                  : voiceActive && voiceSupported
+                    ? "speak or tap"
+                    : "your move"}
           </div>
         </div>
       </div>
@@ -297,7 +319,7 @@ export default function ScriptedStage({
         visible={!qte && !ending && choices.length > 0}
         onChoose={onChoose}
         onFreeText={onChoose}
-        listening={false}
+        listening={micListening}
       />
 
       {qte?.type === "mash" && <Mash difficulty={qte.difficulty} prompt={qte.prompt} onDone={onQteDone} />}

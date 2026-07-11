@@ -164,6 +164,40 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
   const [ending, setEnding] = useState<Ending | null>(null);
   const [showRecap, setShowRecap] = useState(false);
   const [showCodex, setShowCodex] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const pausedRef = useRef(false);
+  const [pingMs, setPingMs] = useState<number | null>(null);
+
+  // network latency indicator: featherweight round-trip every 10s while live
+  useEffect(() => {
+    if (phase !== "live") return;
+    let alive = true;
+    const ping = async () => {
+      const t0 = performance.now();
+      try {
+        await fetch("/api/ping", { cache: "no-store" });
+        if (alive) setPingMs(Math.round(performance.now() - t0));
+      } catch {
+        if (alive) setPingMs(null);
+      }
+    };
+    void ping();
+    const timer = setInterval(ping, 10000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [phase]);
+
+  const togglePause = useCallback(() => {
+    setPaused((p) => {
+      const next = !p;
+      pausedRef.current = next;
+      queueRef.current?.setPaused(next);
+      mixerRef.current?.setPaused(next);
+      return next;
+    });
+  }, []);
   const [genUi, setGenUi] = useState<GenUiPanel | null>(null);
 
   // ---- load playthrough ----
@@ -196,6 +230,18 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
         if (last?.imageAssetId) {
           setImageUrl(`/api/assets/${last.imageAssetId}`);
           lastAssetIdRef.current = last.imageAssetId;
+        } else {
+          // fresh story: the forge already painted the opening beat — show it
+          // NOW. The player never stares at a black stage waiting for the
+          // narrator's first render_scene.
+          const forged =
+            d.playthrough.state?.assetLibrary?.scenes?.[d.playthrough.state?.beatId] ??
+            d.playthrough.state?.sceneCache?.[d.playthrough.state?.beatId] ??
+            Object.values(d.playthrough.state?.assetLibrary?.scenes ?? {})[0];
+          if (forged) {
+            setImageUrl(`/api/assets/${forged}`);
+            lastAssetIdRef.current = forged;
+          }
         }
         setPhase("gate");
       })
@@ -958,6 +1004,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
       setTimeout(releaseAudioGate, 9000); // failsafe: image slow ≠ silence forever
       const session = await connect(resume);
       await audio.startMic((chunk) => {
+        if (pausedRef.current) return; // paused: the world can't hear you
         sessionRef.current?.sendRealtimeInput({
           audio: { data: chunk, mimeType: "audio/pcm;rate=16000" },
         });
@@ -1179,6 +1226,25 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={togglePause}
+            className="bg-black/40 rounded-full px-3 py-1.5 backdrop-blur text-zinc-300 hover:text-amber-300"
+            aria-label={paused ? "resume" : "pause"}
+          >
+            {paused ? "▶" : "⏸"}
+          </button>
+          {pingMs !== null && (
+            <span
+              className="flex items-center gap-1.5 bg-black/40 rounded-full px-2.5 py-1.5 backdrop-blur tabular-nums"
+              title="network round-trip"
+              style={{
+                color: pingMs < 300 ? "#4ade80" : pingMs < 800 ? "#fbbf24" : "#f87171",
+              }}
+            >
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: "currentColor" }} />
+              {pingMs}ms
+            </span>
+          )}
+          <button
             onClick={() => setShowRecap(true)}
             className="bg-black/40 rounded-full px-3 py-1.5 backdrop-blur text-zinc-300 hover:text-amber-300"
           >
@@ -1299,6 +1365,28 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
           readonly
           onClose={() => setShowCodex(false)}
         />
+      )}
+
+      {paused && (
+        <div
+          className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/75 backdrop-blur-md"
+          onClick={togglePause}
+        >
+          <p
+            className="text-amber-300 text-sm tracking-[0.4em] uppercase mb-3"
+          >
+            Paused
+          </p>
+          <p className="text-zinc-400 text-sm mb-8">
+            the story holds its breath — your mic is muted
+          </p>
+          <button
+            className="rounded-full border border-amber-500/60 text-amber-300 px-8 py-4 text-lg hover:bg-amber-500/10"
+            onClick={togglePause}
+          >
+            ▶ Resume
+          </button>
+        </div>
       )}
 
       {showRecap && data && (

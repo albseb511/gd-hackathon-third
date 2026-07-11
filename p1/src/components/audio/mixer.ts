@@ -98,6 +98,12 @@ export class MusicMixer {
     this.current = { src, gain, mood };
   }
 
+  setPaused(paused: boolean) {
+    if (!this.ctx) return;
+    if (paused && this.ctx.state === "running") void this.ctx.suspend();
+    if (!paused && this.ctx.state === "suspended") void this.ctx.resume();
+  }
+
   dispose() {
     this.disposed = true;
     try {

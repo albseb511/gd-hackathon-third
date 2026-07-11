@@ -110,6 +110,14 @@ export class PresentationQueue {
     this.onSpeaker(null);
   }
 
+  /** Pause/resume ALL output audio — suspending the context freezes every
+      scheduled source in place, so resume continues exactly where it stopped. */
+  setPaused(paused: boolean) {
+    if (!this.ctx) return;
+    if (paused && this.ctx.state === "running") void this.ctx.suspend();
+    if (!paused && this.ctx.state === "suspended") void this.ctx.resume();
+  }
+
   dispose() {
     this.flush();
     void this.ctx?.close();

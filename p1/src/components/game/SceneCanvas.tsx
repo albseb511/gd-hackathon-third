@@ -32,6 +32,7 @@ const MOOD_TINT: Record<Mood, string> = {
   tragic: "linear-gradient(to top, rgba(10,10,14,0.5), rgba(30,30,38,0.18) 70%)",
   triumphant: "linear-gradient(to top, rgba(70,48,10,0.28), transparent 55%)",
   item_closeup: "radial-gradient(ellipse at 50% 45%, transparent 35%, rgba(50,35,8,0.45) 100%)",
+  decision: "radial-gradient(ellipse at 50% 60%, transparent 45%, rgba(30,26,50,0.35) 100%)",
 };
 
 export default function SceneCanvas({ imageUrl, caption, speaker, raiseCaption, mood, generating }: SceneCanvasProps) {

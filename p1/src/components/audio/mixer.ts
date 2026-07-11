@@ -5,8 +5,11 @@ import { Mood } from "@/lib/storyEngine/types";
 // Music mixer: loops pre-generated Lyria clips per mood with crossfades,
 // and ducks under the narrator's voice. Own AudioContext (44.1k) so music
 // quality is independent of the 24k speech path.
+// Per-mood fallbacks for banks that don't have the newer beds yet
+// (noir/fantasy until they get their own contract run).
 const MOOD_FALLBACK: Record<string, string> = {
   item_closeup: "explore",
+  decision: "tense",
 };
 
 const DUCK_DB = 0.22; // linear gain while narrator speaks
@@ -47,20 +50,26 @@ export class MusicMixer {
     this.duck.gain.linearRampToValueAtTime(target, this.ctx.currentTime + 0.4);
   }
 
+  private async fetchMood(mood: string): Promise<ArrayBuffer | null> {
+    // variant → base arrangement → per-mood fallback (variant → base)
+    const tryUrl = (url: string) =>
+      fetch(url).then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null);
+    return (
+      (await tryUrl(`/music/${this.bank}/${mood}${this.variant}.mp3`)) ??
+      (await tryUrl(`/music/${this.bank}/${mood}.mp3`)) ??
+      (MOOD_FALLBACK[mood]
+        ? (await tryUrl(`/music/${this.bank}/${MOOD_FALLBACK[mood]}${this.variant}.mp3`)) ??
+          (await tryUrl(`/music/${this.bank}/${MOOD_FALLBACK[mood]}.mp3`))
+        : null)
+    );
+  }
+
   private load(mood: string): Promise<AudioBuffer | null> {
     const key = `${this.bank}/${mood}${this.variant}`;
     let p = this.buffers.get(key);
     if (!p) {
-      p = fetch(`/music/${this.bank}/${mood}${this.variant}.mp3`)
-        .then((r) =>
-          r.ok
-            ? r.arrayBuffer()
-            : // variant missing → fall back to the base arrangement
-              fetch(`/music/${this.bank}/${mood}.mp3`).then((r2) =>
-                r2.ok ? r2.arrayBuffer() : Promise.reject(),
-              ),
-        )
-        .then((ab) => this.ctx!.decodeAudioData(ab))
+      p = this.fetchMood(mood)
+        .then((ab) => (ab ? this.ctx!.decodeAudioData(ab) : null))
         .catch(() => null);
       this.buffers.set(key, p);
     }
@@ -69,7 +78,9 @@ export class MusicMixer {
 
   async play(rawMood: Mood | string) {
     if (!this.ctx || !this.master || this.disposed) return;
-    const mood = MOOD_FALLBACK[rawMood] ?? rawMood;
+    // keep the real mood key — fetchMood() handles per-bank fallbacks, so
+    // banks WITH the newer beds (starship) actually play them
+    const mood = rawMood;
     if (this.current?.mood === mood) return;
     const buf = await this.load(mood);
     if (!buf || this.disposed || this.current?.mood === mood) return;

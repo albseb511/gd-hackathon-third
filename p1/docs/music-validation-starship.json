@@ -1,0 +1,255 @@
+{
+  "results": [
+    {
+      "mood": "tragic",
+      "variant": "",
+      "missing": false,
+      "dur": 26.801633,
+      "i": -18.28,
+      "tp": -6.8,
+      "head": -19.199465,
+      "tail": -18.49599,
+      "rawI": -12.56,
+      "rawCentroid": 669.8765505279036,
+      "fails": []
+    },
+    {
+      "mood": "tragic",
+      "variant": "-2",
+      "missing": false,
+      "dur": 26.801633,
+      "i": -18.1,
+      "tp": -6.33,
+      "head": -18.719731,
+      "tail": -19.342629,
+      "rawI": -12.12,
+      "rawCentroid": 720.0478137254903,
+      "fails": []
+    },
+    {
+      "mood": "calm",
+      "variant": "",
+      "missing": false,
+      "dur": 25.861224,
+      "i": -19.02,
+      "tp": -3.53,
+      "head": -19.002455,
+      "tail": -21.476925,
+      "rawI": -13.08,
+      "rawCentroid": 1605.9273992217907,
+      "fails": []
+    },
+    {
+      "mood": "calm",
+      "variant": "-2",
+      "missing": false,
+      "dur": 26.801633,
+      "i": -19.48,
+      "tp": -4.53,
+      "head": -17.825058,
+      "tail": -22.338803,
+      "rawI": -13.95,
+      "rawCentroid": 1094.012564102565,
+      "fails": []
+    },
+    {
+      "mood": "item_closeup",
+      "variant": "",
+      "missing": false,
+      "dur": 26.801633,
+      "i": -17.62,
+      "tp": -3.76,
+      "head": -16.482395,
+      "tail": -21.059777,
+      "rawI": -13.98,
+      "rawCentroid": 712.2974117647061,
+      "fails": []
+    },
+    {
+      "mood": "item_closeup",
+      "variant": "-2",
+      "missing": false,
+      "dur": 26.801633,
+      "i": -17.74,
+      "tp": -3.5,
+      "head": -17.299212,
+      "tail": -20.718551,
+      "rawI": -13.16,
+      "rawCentroid": 1366.6355746606325,
+      "fails": []
+    },
+    {
+      "mood": "explore",
+      "variant": "",
+      "missing": false,
+      "dur": 26.801633,
+      "i": -15.76,
+      "tp": -1.74,
+      "head": -14.522107,
+      "tail": -19.074728,
+      "rawI": -13.99,
+      "rawCentroid": 912.7279879336335,
+      "fails": []
+    },
+    {
+      "mood": "explore",
+      "variant": "-2",
+      "missing": false,
+      "dur": 26.801633,
+      "i": -15.77,
+      "tp": -1.67,
+      "head": -15.024662,
+      "tail": -18.848127,
+      "rawI": -13.43,
+      "rawCentroid": 941.1266199095011,
+      "fails": []
+    },
+    {
+      "mood": "decision",
+      "variant": "",
+      "missing": false,
+      "dur": 26.801633,
+      "i": -17.34,
+      "tp": -3.04,
+      "head": -32.727271,
+      "tail": -23.265457,
+      "rawI": -12.89,
+      "rawCentroid": 1451.7276622926101,
+      "fails": [
+        "loop seam Δ9.5dB > 6"
+      ]
+    },
+    {
+      "mood": "decision",
+      "variant": "-2",
+      "missing": false,
+      "dur": 26.801633,
+      "i": -16.56,
+      "tp": -1.76,
+      "head": -17.836651,
+      "tail": -15.709448,
+      "rawI": -14.37,
+      "rawCentroid": 906.323693061842,
+      "fails": []
+    },
+    {
+      "mood": "intro",
+      "variant": "",
+      "missing": false,
+      "dur": 26.801633,
+      "i": -13.79,
+      "tp": -1.71,
+      "head": -14.556249,
+      "tail": -15.667932,
+      "rawI": -13.69,
+      "rawCentroid": 839.7841975867273,
+      "fails": []
+    },
+    {
+      "mood": "intro",
+      "variant": "-2",
+      "missing": false,
+      "dur": 26.801633,
+      "i": -14.09,
+      "tp": -1.69,
+      "head": -13.837564,
+      "tail": -16.714382,
+      "rawI": -13.46,
+      "rawCentroid": 1063.5773499245854,
+      "fails": []
+    },
+    {
+      "mood": "triumphant",
+      "variant": "",
+      "missing": false,
+      "dur": 26.801633,
+      "i": -13.96,
+      "tp": -1.7,
+      "head": -19.625683,
+      "tail": -21.872543,
+      "rawI": -11.4,
+      "rawCentroid": 1255.2304494720959,
+      "fails": []
+    },
+    {
+      "mood": "triumphant",
+      "variant": "-2",
+      "missing": false,
+      "dur": 26.801633,
+      "i": -14.09,
+      "tp": -1.49,
+      "head": -16.032515,
+      "tail": -19.835513,
+      "rawI": -12.96,
+      "rawCentroid": 1076.7821983408742,
+      "fails": []
+    },
+    {
+      "mood": "tense",
+      "variant": "",
+      "missing": false,
+      "dur": 26.801633,
+      "i": -13.58,
+      "tp": -1,
+      "head": -10.681697,
+      "tail": -9.459291,
+      "rawI": -14.45,
+      "rawCentroid": 1340.1328891402713,
+      "fails": [
+        "loudness -13.6 vs target -11 (±2)"
+      ]
+    },
+    {
+      "mood": "tense",
+      "variant": "-2",
+      "missing": false,
+      "dur": 26.801633,
+      "i": -12.34,
+      "tp": -1.61,
+      "head": -12.319562,
+      "tail": -11.601488,
+      "rawI": -14.02,
+      "rawCentroid": 790.9430429864258,
+      "fails": []
+    },
+    {
+      "mood": "combat",
+      "variant": "",
+      "missing": false,
+      "dur": 26.801633,
+      "i": -12.05,
+      "tp": -1.13,
+      "head": -12.524643,
+      "tail": -12.150784,
+      "rawI": -13,
+      "rawCentroid": 3117.0623453996986,
+      "fails": [
+        "loudness -12.1 vs target -9 (±2)"
+      ]
+    },
+    {
+      "mood": "combat",
+      "variant": "-2",
+      "missing": false,
+      "dur": 26.801633,
+      "i": -10.93,
+      "tp": -1.01,
+      "head": -12.786859,
+      "tail": -11.292795,
+      "rawI": -12.51,
+      "rawCentroid": 3193.8826161387615,
+      "fails": []
+    }
+  ],
+  "warns": [
+    "arousal inversion: intro(rank 5) is quieter than tragic(rank 2) in raw output",
+    "arousal inversion: tense(rank 7) is quieter than tragic(rank 2) in raw output",
+    "brightness inversion: calm(dark-mid) is brighter than item_closeup(mid-bright)",
+    "brightness inversion: calm(dark-mid) is brighter than triumphant(mid-bright)"
+  ],
+  "failedMoods": [
+    "decision",
+    "tense",
+    "combat"
+  ]
+}

@@ -46,7 +46,7 @@ const RESPONSE_SCHEMA = {
     },
     mood: {
       type: Type.STRING,
-      enum: ["intro", "explore", "calm", "tense", "combat", "tragic", "triumphant"],
+      enum: ["intro", "explore", "calm", "tense", "combat", "tragic", "triumphant", "item_closeup", "decision"],
     },
     choicesMissing: { type: Type.BOOLEAN },
     choices: {
@@ -78,7 +78,7 @@ const RESPONSE_SCHEMA = {
     },
     trueMood: {
       type: Type.STRING,
-      enum: ["intro", "explore", "calm", "tense", "combat", "tragic", "triumphant"],
+      enum: ["intro", "explore", "calm", "tense", "combat", "tragic", "triumphant", "item_closeup", "decision"],
       description: "The dominant emotional beat of this turn.",
     },
     silentCharacters: {

@@ -111,6 +111,9 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
     return () => cancelAnimationFrame(raf);
   }, []);
   const lastScenePromptRef = useRef<string>("");
+  // the mood of the scene being heard — the decision bed resolves back to it
+  const lastSceneMoodRef = useRef<Mood>("intro");
+
   const turnFlagsRef = useRef({
     hadRenderScene: false,
     hadChoices: false,
@@ -167,6 +170,16 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
   const [qte, setQte] = useState<QteConfig | null>(null);
   const [dice, setDice] = useState<DiceConfig | null>(null);
   const [ending, setEnding] = useState<Ending | null>(null);
+  // every choice-reveal path goes through here: options appear AND the
+  // held-breath "decision" bed takes over until the player commits
+  const revealChoices = useCallback((options: string[]) => {
+    setChoices((cur) => {
+      if (cur.length || options.length === 0) return cur;
+      void mixerRef.current?.play("decision");
+      return options;
+    });
+  }, []);
+
   const [showRecap, setShowRecap] = useState(false);
   const [showCodex, setShowCodex] = useState(false);
   const [paused, setPaused] = useState(false);
@@ -424,6 +437,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
         setImageUrl(frame.dataUrl);
         playSfx("whoosh");
         setMood(mood);
+        lastSceneMoodRef.current = mood;
         void mixerRef.current?.play(mood);
         persistBeat({
           marks: [{ name: "image-on-screen", ms: Math.round(performance.now() - t0) }],
@@ -759,7 +773,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
         }
         // never fight the narrator: only fill choices if none are up
         if (v.missedChoices && !pendingChoicesRef.current) {
-          setChoices((cur) => (cur.length ? cur : v.missedChoices!));
+          revealChoices(v.missedChoices!);
         }
         if (v.socialPatch && stateRef.current) {
           stateRef.current = applyNarratorPatch(stateRef.current, v.socialPatch);
@@ -769,7 +783,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
         // director is best-effort; the show goes on
       }
     },
-    [playthroughId, execRenderScene, persistBeat],
+    [playthroughId, execRenderScene, persistBeat, revealChoices],
   );
 
   // ---- Live session ----
@@ -890,7 +904,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
                 const epoch = inputEpochRef.current;
                 void (queueRef.current?.waitForDrain() ?? Promise.resolve()).then(() => {
                   if (inputEpochRef.current === epoch) {
-                    setChoices((cur) => (cur.length ? cur : options));
+                    revealChoices(options);
                   } else {
                     // input arrived while draining (often just ambient noise)
                     // — never DISCARD the options; park them so the watchdog
@@ -929,7 +943,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
       sessionRef.current = session;
       return session;
     },
-    [playthroughId, handleToolCall, persistBeat, runDirectorPass, releaseAudioGate, fireProvisionalFrame, prefetchNextBeats],
+    [playthroughId, handleToolCall, persistBeat, runDirectorPass, releaseAudioGate, fireProvisionalFrame, prefetchNextBeats, revealChoices],
   );
   useEffect(() => {
     connectRef.current = connect;
@@ -961,7 +975,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
       ) {
         const parked = pendingChoicesRef.current;
         pendingChoicesRef.current = null;
-        setChoices((cur) => (cur.length ? cur : parked));
+        revealChoices(parked);
         return;
       }
       if (
@@ -992,7 +1006,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
       }
     }, 3000);
     return () => clearInterval(timer);
-  }, [phase, narratorSpeaking, choices.length, qte, dice, ending]);
+  }, [phase, narratorSpeaking, choices.length, qte, dice, ending, revealChoices]);
 
   const begin = useCallback(async () => {
     setPhase("connecting");
@@ -1066,6 +1080,8 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
 
   // ---- player inputs ----
   const sendText = useCallback((text: string) => {
+    // decision bed resolves out the moment the player commits
+    void mixerRef.current?.play(lastSceneMoodRef.current);
     inputEpochRef.current++;
     lastActivityRef.current = Date.now();
     nudgedRef.current = false;

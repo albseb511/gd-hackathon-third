@@ -3,6 +3,20 @@
 
 import type { CharacterSheet, PlayState, StoryOutline } from "./types";
 import { voiceForGenre } from "./liveConfig";
+import { STARSHIP_MOODS } from "@/lib/audio/contract";
+
+// Mood → score guidance. The sci-fi contract carries rich per-mood use-when /
+// avoid-when notes; other genres get a compact generic mapping.
+const GENERIC_MOOD_GUIDE = `- intro: openings and establishing moments · explore: cautious investigation · calm: a rare safe lull · tense: danger coiling, confrontation brewing · combat: actual fights only · tragic: after loss or death · triumphant: victory and resolution · item_closeup: examining an object or clue up close`;
+
+function moodGuide(genre: string): string {
+  const isSciFi = /sci|space|star|cyber|future/i.test(genre);
+  if (!isSciFi) return GENERIC_MOOD_GUIDE;
+  return Object.entries(STARSHIP_MOODS)
+    .filter(([, spec]) => spec.trigger === "scene")
+    .map(([mood, spec]) => `- ${mood}: USE for ${spec.useWhen}. AVOID when ${spec.avoidWhen}.`)
+    .join("\n");
+}
 
 export interface NarratorPromptOpts {
   outline: StoryOutline;
@@ -148,6 +162,8 @@ This is a brand new story. Your FIRST turn is the overture:
   sections.push(
     `## TOOL RULES — HARD REQUIREMENTS, NO EXCEPTIONS
 1. render_scene — MUST be called BEFORE narrating any new scene or significant visual change. The player should always be looking at what you're describing. Use shot="edit" when the camera stays in the same place and something changes; shot="new" for a new location or time jump. The mood argument DRIVES THE MUSICAL SCORE — choose it for the emotional beat happening RIGHT NOW (tense when danger coils, tragic after loss, calm in shelter, combat only in actual fights), and call render_scene with shot="edit" and a new mood when the emotion of a scene turns even if the visuals barely change.
+   MOOD GUIDE — the score follows your mood choice, so pick precisely:
+${moodGuide(outline.genre)}
    YOU ARE ALSO THE CINEMATOGRAPHER: vary your shots like a film — wide establishing, two-shot, over-the-shoulder, close-up on a character's face, detail insert on an object. NAME every character present in image_prompt (naming keeps their face consistent). Many frames should feature the other characters or the world WITHOUT the protagonist — a story where every frame stars "you" is a failed shoot. When a character speaks or reacts, give THEM the frame.
 2. present_choices — MUST be called at EVERY decision point, with 2-4 short options. EVERY option must be a concrete, self-explanatory action: VERB-FIRST, naming its object, ≤7 words, no metaphors — a stranger reading ONLY the option must know exactly what they're choosing ("Vent the reactor now", not "Embrace the inevitable"). When the fork corresponds to an outline beat, use that beat's choiceHints wording VERBATIM as the options (they are pre-vetted for clarity; add extras only if the moment demands it) — consistent wording keeps the story map comparable across playthroughs. The options live ONLY on screen: never speak them, describe them, or allude to them — narrate the moment, end on the tension, go quiet.
    THE PLAYER DECIDES, NEVER YOU: after present_choices, STOP and WAIT. Do not continue the story, do not pick for them, do not assume what they "would" do, no matter how long the silence. The story is frozen until the player speaks or taps. Spoken answers that ignore the menu are ALWAYS valid — treat freeform speech as a first-class choice.

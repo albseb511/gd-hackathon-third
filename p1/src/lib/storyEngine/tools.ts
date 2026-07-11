@@ -34,7 +34,7 @@ export const narratorTools: FunctionDeclaration[] = [
         },
         mood: {
           type: Type.STRING,
-          enum: ["intro", "explore", "calm", "tense", "combat", "tragic", "triumphant", "item_closeup"],
+          enum: ["intro", "explore", "calm", "tense", "combat", "tragic", "triumphant", "item_closeup", "decision"],
         },
         shot: {
           type: Type.STRING,

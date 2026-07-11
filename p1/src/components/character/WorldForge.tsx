@@ -5,7 +5,7 @@
 // a gold-lit gallery as one pipeline paints them. Live mode polls the forge;
 // readonly mode is the same gallery reborn as an in-game codex.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "@/components/game/overlays.css";
 
 interface ForgeItem {
@@ -30,6 +30,9 @@ export interface WorldForgeProps {
   playthroughId: string;
   readonly?: boolean;
   onClose?: () => void;
+  // fires on every poll so the parent can gate flow on forge progress;
+  // `settled` is true once the forge completed, failed, or went quiet
+  onProgress?: (p: { done: number; total: number; settled: boolean }) => void;
 }
 
 // ---- category bucketing --------------------------------------------------------
@@ -74,12 +77,17 @@ export default function WorldForge({
   playthroughId,
   readonly = false,
   onClose,
+  onProgress,
 }: WorldForgeProps) {
   const [status, setStatus] = useState<ForgeStatus | null>(null);
   const [stalled, setStalled] = useState(false); // 404s beyond patience, or fetch death
   const [now, setNow] = useState(() => Date.now());
   const [filter, setFilter] = useState<Group | null>(null);
   const [mountedAt] = useState(() => Date.now());
+  const onProgressRef = useRef(onProgress);
+  useEffect(() => {
+    onProgressRef.current = onProgress;
+  }, [onProgress]);
 
   // ---- polling (live) / single fetch (readonly) --------------------------------
   useEffect(() => {
@@ -100,6 +108,7 @@ export default function WorldForge({
           misses += 1;
           if (readonly || (misses >= 3 && Date.now() - mountedAt > 15_000)) {
             setStalled(true);
+            onProgressRef.current?.({ done: 0, total: 0, settled: true });
             return;
           }
         } else if (res.ok) {
@@ -108,8 +117,14 @@ export default function WorldForge({
           if (cancelled) return;
           setStatus(data);
           setStalled(false);
+          const complete = !data.running && data.total > 0 && data.done >= data.total;
+          onProgressRef.current?.({
+            done: data.done,
+            total: data.total,
+            settled: complete || !data.running,
+          });
           if (readonly) return; // codex mode: one snapshot is enough
-          if (!data.running && data.total > 0 && data.done >= data.total) return;
+          if (complete) return;
         } else if (readonly) {
           setStalled(true);
           return;

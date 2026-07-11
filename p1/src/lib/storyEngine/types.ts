@@ -37,7 +37,8 @@ export type Mood =
   | "combat"
   | "tragic"
   | "triumphant"
-  | "item_closeup";
+  | "item_closeup"
+  | "decision"; // held-breath bed while choices are on screen (phase-triggered)
 
 export interface OutlineBeat {
   id: string;

@@ -96,6 +96,10 @@ export default function CharacterCreator({
   const [portraitIn, setPortraitIn] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // the story gate stays shut until the World Forge finishes (or settles):
+  // entering a fully-forged world means instant scenes from beat one
+  const [forgeDone, setForgeDone] = useState(false);
+  const [forgeProgress, setForgeProgress] = useState({ done: 0, total: 0 });
   const stageTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const mixerRef = useRef<MusicMixer | null>(null);
   const bankRef = useRef("fantasy");
@@ -509,10 +513,36 @@ export default function CharacterCreator({
               type="button"
               className="cc-cta"
               onClick={onContinue}
-              style={{ animation: "vn-rise-in 600ms ease-out 1700ms both" }}
+              disabled={!!playthroughId && !forgeDone}
+              style={{
+                animation: "vn-rise-in 600ms ease-out 1700ms both",
+                opacity: playthroughId && !forgeDone ? 0.55 : 1,
+                cursor: playthroughId && !forgeDone ? "wait" : "pointer",
+              }}
             >
-              {playthroughId ? "Enter the story" : "Continue"}
+              {playthroughId
+                ? forgeDone
+                  ? "Enter the story"
+                  : forgeProgress.total > 0
+                    ? `Forging your world… ${forgeProgress.done} / ${forgeProgress.total}`
+                    : "Forging your world…"
+                : "Continue"}
             </button>
+            {playthroughId && !forgeDone && (
+              // escape hatch fades in after 20s via animation-delay — a slow
+              // or dead forge must never trap the player here
+              <button
+                type="button"
+                onClick={onContinue}
+                className="text-xs underline"
+                style={{
+                  color: "rgba(242,232,213,0.45)",
+                  animation: "vn-rise-in 600ms ease-out 20000ms both",
+                }}
+              >
+                enter without waiting
+              </button>
+            )}
 
             {/* the World Forge: watch the story's entire visual world get
                 painted while deciding when to step in */}
@@ -529,7 +559,13 @@ export default function CharacterCreator({
                       "linear-gradient(to right, transparent, rgba(217,179,108,0.4), transparent)",
                   }}
                 />
-                <WorldForge playthroughId={playthroughId} />
+                <WorldForge
+                  playthroughId={playthroughId}
+                  onProgress={(p) => {
+                    setForgeProgress({ done: p.done, total: p.total });
+                    if (p.settled) setForgeDone(true);
+                  }}
+                />
               </div>
             )}
           </section>

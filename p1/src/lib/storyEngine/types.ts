@@ -103,6 +103,16 @@ export interface PlayState {
   sceneCache?: Record<string, string>;
   // NPC name → portrait asset, attached as reference whenever they're in-scene
   npcPortraits?: Record<string, string>;
+  // World Forge output: every pre-generated story asset, keyed by manifest key
+  // (values are asset ids). scenes mirrors sceneCache, npcs mirrors npcPortraits.
+  assetLibrary?: {
+    scenes: Record<string, string>;
+    locations: Record<string, string>;
+    props: Record<string, string>;
+    poses: Record<string, string>;
+    cards: Record<string, string>;
+    npcs: Record<string, string>;
+  };
 }
 
 export const initialPlayState = (firstBeatId: string): PlayState => ({

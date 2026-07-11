@@ -12,6 +12,42 @@ interface UIRendererProps {
   kind: string;
   spec: unknown;
   onClose: () => void;
+  /** item/prop name → forged assetId; when a key matches an item name the
+   *  cell renders real art from /api/assets/[id] instead of the medallion */
+  thumbs?: Record<string, string>;
+}
+
+// Case-insensitive fuzzy match: a thumbs key that includes — or is included
+// in — the item name counts (exact match wins first).
+function findThumb(
+  thumbs: Record<string, string> | undefined,
+  name: string,
+): string | null {
+  if (!thumbs) return null;
+  const n = name.trim().toLowerCase();
+  if (!n) return null;
+  let partial: string | null = null;
+  for (const [k, id] of Object.entries(thumbs)) {
+    const key = k.trim().toLowerCase();
+    if (!key || !id) continue;
+    if (key === n) return id;
+    if (!partial && (key.includes(n) || n.includes(key))) partial = id;
+  }
+  return partial;
+}
+
+function ItemArt({ assetId, name }: { assetId: string; name: string }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`/api/assets/${assetId}`}
+      alt={name}
+      loading="lazy"
+      draggable={false}
+      className="h-16 w-16 flex-none rounded-lg object-cover"
+      style={{ border: "1px solid rgba(217,179,108,0.3)", background: "#171008" }}
+    />
+  );
 }
 
 // ---- shared bits -------------------------------------------------------------
@@ -83,20 +119,28 @@ function StatBlock({ spec }: { spec: Extract<UiSpec, { kind: "stat_block" }> }) 
   );
 }
 
-function InventoryGrid({ spec }: { spec: Extract<UiSpec, { kind: "inventory_grid" }> }) {
+function InventoryGrid({
+  spec,
+  thumbs,
+}: {
+  spec: Extract<UiSpec, { kind: "inventory_grid" }>;
+  thumbs?: Record<string, string>;
+}) {
   if (spec.items.length === 0) {
     return <p className="text-sm italic" style={{ color: DIM }}>Your pockets are empty.</p>;
   }
   return (
     <div className="grid grid-cols-2 gap-3">
-      {spec.items.map((item, i) => (
+      {spec.items.map((item, i) => {
+        const art = findThumb(thumbs, item.name);
+        return (
         <Row key={item.name + i} index={i}>
           <div
             className="flex h-full flex-col items-center gap-2 rounded-lg px-3 py-4 text-center"
             style={{ border: HAIRLINE, background: "rgba(20, 16, 10, 0.6)" }}
             title={item.iconHint}
           >
-            <Glyph text={item.name} />
+            {art ? <ItemArt assetId={art} name={item.name} /> : <Glyph text={item.name} />}
             <span className="text-sm leading-tight">{item.name}</span>
             {item.note && (
               <span className="text-xs italic leading-snug" style={{ color: DIM }}>
@@ -105,7 +149,8 @@ function InventoryGrid({ spec }: { spec: Extract<UiSpec, { kind: "inventory_grid
             )}
           </div>
         </Row>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -217,7 +262,13 @@ function MapPanel({ spec }: { spec: Extract<UiSpec, { kind: "map" }> }) {
   );
 }
 
-function Shop({ spec }: { spec: Extract<UiSpec, { kind: "shop" }> }) {
+function Shop({
+  spec,
+  thumbs,
+}: {
+  spec: Extract<UiSpec, { kind: "shop" }>;
+  thumbs?: Record<string, string>;
+}) {
   return (
     <div className="flex flex-col">
       <Row index={0}>
@@ -225,9 +276,22 @@ function Shop({ spec }: { spec: Extract<UiSpec, { kind: "shop" }> }) {
           prices in {spec.currency}
         </p>
       </Row>
-      {spec.items.map((item, i) => (
+      {spec.items.map((item, i) => {
+        const art = findThumb(thumbs, item.name);
+        return (
         <Row key={item.name + i} index={i + 1}>
-          <div className="flex items-baseline gap-3 py-3.5" style={{ borderTop: HAIRLINE }}>
+          <div className="flex items-center gap-3 py-3.5" style={{ borderTop: HAIRLINE }}>
+            {art && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={`/api/assets/${art}`}
+                alt={item.name}
+                loading="lazy"
+                draggable={false}
+                className="h-11 w-11 flex-none rounded-md object-cover"
+                style={{ border: "1px solid rgba(217,179,108,0.3)", background: "#171008" }}
+              />
+            )}
             <div className="min-w-0 flex-1">
               <p className="text-[15px]">{item.name}</p>
               {item.note && (
@@ -244,7 +308,8 @@ function Shop({ spec }: { spec: Extract<UiSpec, { kind: "shop" }> }) {
             </span>
           </div>
         </Row>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -277,7 +342,7 @@ const KIND_LABEL: Record<UiSpec["kind"], string> = {
   shop: "Wares",
 };
 
-export default function UIRenderer({ kind, spec, onClose }: UIRendererProps) {
+export default function UIRenderer({ kind, spec, onClose, thumbs }: UIRendererProps) {
   const parsed = uiSpecSchema.safeParse(
     spec && typeof spec === "object" ? { kind, ...(spec as object) } : spec,
   );
@@ -294,11 +359,11 @@ export default function UIRenderer({ kind, spec, onClose }: UIRendererProps) {
       s.kind === "dialogue_card" ? s.speaker : s.title || KIND_LABEL[s.kind];
     body =
       s.kind === "stat_block" ? <StatBlock spec={s} /> :
-      s.kind === "inventory_grid" ? <InventoryGrid spec={s} /> :
+      s.kind === "inventory_grid" ? <InventoryGrid spec={s} thumbs={thumbs} /> :
       s.kind === "dialogue_card" ? <DialogueCard spec={s} /> :
       s.kind === "journal" ? <Journal spec={s} /> :
       s.kind === "map" ? <MapPanel spec={s} /> :
-      <Shop spec={s} />;
+      <Shop spec={s} thumbs={thumbs} />;
   }
 
   const kicker = parsed.success ? KIND_LABEL[parsed.data.kind] : "interlude";

@@ -17,7 +17,17 @@ type TtsSegment = {
   line: string;
   clip: Promise<string | null>; // base64 24k PCM16, null on failure
 };
-type Segment = LiveSegment | TtsSegment;
+// A visual marker rides the audio timeline WITHOUT blocking it: its apply()
+// fires when playback reaches this point in the stream (and the visual is
+// ready) — scene changes sync to the narration being HEARD while generation
+// runs fully parallel underneath.
+type VisualSegment = {
+  kind: "visual";
+  seq: number;
+  ready: Promise<unknown> | null;
+  apply: () => void;
+};
+type Segment = LiveSegment | TtsSegment | VisualSegment;
 
 export interface SpeakerInfo {
   speaker: string; // "narrator" or a character name
@@ -36,6 +46,8 @@ export class PresentationQueue {
   private epoch = 0; // bumped on flush; stale pumps/awaits abandon
   private speakingTimer: ReturnType<typeof setTimeout> | null = null;
   private wake: (() => void) | null = null;
+  private visualSeq = 0;
+  private lastAppliedVisual = 0;
 
   onSpeaking: (speaking: boolean) => void = () => {};
   onSpeaker: (info: SpeakerInfo | null) => void = () => {};
@@ -72,6 +84,14 @@ export class PresentationQueue {
     const tail = this.segments[this.segments.length - 1];
     if (tail?.kind === "live") tail.closed = true;
     this.segments.push({ kind: "tts", speaker, line, clip });
+    this.poke();
+  }
+
+  /** A scene/visual change that should land in sync with the narration. */
+  pushVisual(apply: () => void, ready: Promise<unknown> | null = null) {
+    const tail = this.segments[this.segments.length - 1];
+    if (tail?.kind === "live") tail.closed = true;
+    this.segments.push({ kind: "visual", seq: ++this.visualSeq, ready, apply });
     this.poke();
   }
 
@@ -188,6 +208,29 @@ export class PresentationQueue {
           continue;
         }
 
+        if (seg.kind === "visual") {
+          // NON-BLOCKING for audio: stamp this marker at the current end of
+          // scheduled audio and move on; apply fires when playback reaches
+          // that stamp AND the visual is ready. Later markers supersede
+          // earlier ones that lag behind their slot.
+          this.segments.shift();
+          const ctx = this.ensureCtx();
+          const applyAt = Math.max(this.cursor, ctx.currentTime);
+          const marker = seg;
+          const fire = () => {
+            if (this.epoch !== epoch) return;
+            if (marker.seq < this.lastAppliedVisual) return; // superseded
+            this.lastAppliedVisual = marker.seq;
+            try {
+              marker.apply();
+            } catch {}
+          };
+          const slotMs = Math.max(0, (applyAt - ctx.currentTime) * 1000);
+          const slot = new Promise((r) => setTimeout(r, slotMs));
+          void Promise.all([slot, marker.ready ?? Promise.resolve()]).then(fire);
+          continue;
+        }
+
         // TTS segment: let prior audio finish, then play the clip
         await this.waitUntilCursor(epoch);
         if (this.epoch !== epoch) break;
@@ -212,7 +255,15 @@ export class PresentationQueue {
     } finally {
       this.pumping = false;
       // new pushes while we were exiting?
-      if (this.epoch === epoch && this.segments.some((s) => s.kind === "tts" || (s.kind === "live" && s.scheduled < s.chunks.length))) {
+      if (
+        this.epoch === epoch &&
+        this.segments.some(
+          (s) =>
+            s.kind === "tts" ||
+            s.kind === "visual" ||
+            (s.kind === "live" && s.scheduled < s.chunks.length),
+        )
+      ) {
         void this.pump();
       }
     }

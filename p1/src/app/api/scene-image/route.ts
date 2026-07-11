@@ -59,11 +59,23 @@ export async function POST(req: Request) {
     const ctx = await loadPlaythroughContext(body.playthroughId).catch(() => null);
     if (ctx) {
       const wantedIds: string[] = [];
+      const promptLowerEarly = prompt.toLowerCase();
 
-      // protagonist(s): portrait + visual tokens on EVERY scene generation
-      const playerPortraits = ctx.charactersSheets
-        .map((c) => c.portraitAssetId)
-        .filter((x): x is string => Boolean(x));
+      // protagonist(s): attach ONLY when the shot actually depicts the player
+      // — establishing shots, NPC-led frames and object shots must not pull
+      // the camera back onto "you" (that's how every frame became a selfie)
+      const playerInShot = ctx.charactersSheets.some((c) => {
+        const nameHit = c.name
+          .toLowerCase()
+          .split(/\s+/)
+          .some((p) => p.length > 2 && promptLowerEarly.includes(p));
+        return nameHit || /\byou\b|\byour\b|protagonist/.test(promptLowerEarly);
+      });
+      const playerPortraits = playerInShot
+        ? ctx.charactersSheets
+            .map((c) => c.portraitAssetId)
+            .filter((x): x is string => Boolean(x))
+        : [];
       wantedIds.push(...playerPortraits);
 
       // NPCs actually present in this shot (name-matched against the prompt)
@@ -93,7 +105,7 @@ export async function POST(req: Request) {
         refIndex++;
         const sheet = ctx.charactersSheets[i];
         promptExtras.push(
-          `Reference image ${refIndex} is the protagonist ("you"${sheet?.name ? `, ${sheet.name}` : ""}): ${sheet?.visualTokens ?? ""}. Keep their face, hair, build and outfit exactly consistent.`,
+          `Reference image ${refIndex} is the protagonist ("you"${sheet?.name ? `, ${sheet.name}` : ""}): ${sheet?.visualTokens ?? ""}. Keep their face, hair, build and outfit exactly consistent — but shoot them in THIRD PERSON, as one character inside the scene: never posing, never a centered portrait. Wide, over-the-shoulder and profile framings welcome; other characters share the frame equally.`,
         );
       }
       for (const npc of npcsInShot) {
@@ -107,6 +119,26 @@ export async function POST(req: Request) {
         } else {
           // no portrait yet: at least pin the description
           promptExtras.push(`${npc.name} looks like: ${npc.visualDescription}.`);
+        }
+      }
+
+      // location anchor: if a forged establishing shot matches this prompt,
+      // it rides along so the same place stays the same place
+      const locations = (ctx.state as PlayState).assetLibrary?.locations ?? {};
+      const locHit = Object.entries(locations).find(([slug]) =>
+        slug
+          .toLowerCase()
+          .split(/[_-]/)
+          .some((p) => p.length > 3 && promptLowerEarly.includes(p)),
+      );
+      if (locHit) {
+        const img = bytes.get(locHit[1]) ?? (await loadAssetBytes([locHit[1]])).get(locHit[1]);
+        if (img) {
+          referenceImages.push(img);
+          refIndex++;
+          promptExtras.push(
+            `Reference image ${refIndex} is this location — keep its architecture, layout and lighting consistent.`,
+          );
         }
       }
 

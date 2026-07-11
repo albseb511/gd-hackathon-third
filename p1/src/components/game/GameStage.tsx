@@ -23,6 +23,7 @@ import SceneCanvas from "@/components/game/SceneCanvas";
 import ChoiceBar from "@/components/game/ChoiceBar";
 import DiceRoll from "@/components/game/DiceRoll";
 import ChapterRecap from "@/components/analytics/ChapterRecap";
+import WorldForge from "@/components/character/WorldForge";
 import UIRenderer from "@/components/genui/UIRenderer";
 import ArtifactFrame from "@/components/genui/ArtifactFrame";
 import Mash from "@/components/game/qte/Mash";
@@ -162,6 +163,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
   const [dice, setDice] = useState<DiceConfig | null>(null);
   const [ending, setEnding] = useState<Ending | null>(null);
   const [showRecap, setShowRecap] = useState(false);
+  const [showCodex, setShowCodex] = useState(false);
   const [genUi, setGenUi] = useState<GenUiPanel | null>(null);
 
   // ---- load playthrough ----
@@ -175,10 +177,12 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
         setData(d);
         stateRef.current = d.playthrough.state;
         setHp(d.playthrough.state?.hp ?? 10);
-        // seed the predictive cache with prewarmed opening scenes
-        for (const [beatId, assetId] of Object.entries(
-          d.playthrough.state?.sceneCache ?? {},
-        )) {
+        // seed the predictive cache with every forged scene (assetLibrary
+        // covers ALL beats; sceneCache remains the older prewarm fallback)
+        for (const [beatId, assetId] of Object.entries({
+          ...(d.playthrough.state?.sceneCache ?? {}),
+          ...(d.playthrough.state?.assetLibrary?.scenes ?? {}),
+        })) {
           beatCacheRef.current.set(
             beatId,
             Promise.resolve({ dataUrl: `/api/assets/${assetId}`, assetId }),
@@ -295,44 +299,32 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
   }, []);
 
   // ---- tool executors ----
+  // Two-lane semaphore: GENERATION starts the instant the tool call arrives
+  // (fully parallel); DISPLAY rides a visual marker on the audio timeline so
+  // each frame appears when the narration describing it is actually heard.
   const execRenderScene = useCallback(
-    async (args: Record<string, unknown>) => {
+    (args: Record<string, unknown>) => {
       const t0 = performance.now();
       const seq = ++renderSeqRef.current;
       setGenerating(true);
-      setMood((args.mood as Mood) ?? "explore");
-      void mixerRef.current?.play((args.mood as Mood) ?? "explore");
       const data = dataRef.current!;
+      const mood = (args.mood as Mood) ?? "explore";
       // story position advances with the scene, not only with update_state
       if (typeof args.beat_id === "string" && stateRef.current) {
         stateRef.current = applyNarratorPatch(stateRef.current, {}, args.beat_id);
         persistBeat({ statePatch: { state: stateRef.current } });
       }
-      // predictive cache: if this beat was prefetched, the frame is instant
-      if (typeof args.beat_id === "string" && beatCacheRef.current.has(args.beat_id)) {
-        const cached = await beatCacheRef.current.get(args.beat_id)!;
-        beatCacheRef.current.delete(args.beat_id);
-        if (cached?.dataUrl && renderSeqRef.current === seq) {
-          lastScenePromptRef.current = String(args.image_prompt ?? "");
-          setImageUrl(cached.dataUrl);
-          playSfx("whoosh");
-          releaseAudioGate();
-          if (cached.assetId) lastAssetIdRef.current = cached.assetId;
-          const idx = sceneIdxRef.current++;
-          persistBeat({
-            scene: {
-              idx,
-              beatId: args.beat_id,
-              imagePrompt: args.image_prompt,
-              imageAssetId: cached.assetId,
-            },
-            marks: [{ name: "image-on-screen", ms: Math.round(performance.now() - t0) }],
-          });
-          setGenerating(false);
-          return;
+
+      const resolveFrame = async (): Promise<{
+        dataUrl: string;
+        assetId: string | null;
+      } | null> => {
+        // predictive/forged cache: the frame may already exist
+        if (typeof args.beat_id === "string" && beatCacheRef.current.has(args.beat_id)) {
+          const cached = await beatCacheRef.current.get(args.beat_id)!;
+          beatCacheRef.current.delete(args.beat_id);
+          if (cached?.dataUrl) return cached;
         }
-      }
-      try {
         const res = await fetch("/api/scene-image", {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -341,37 +333,59 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
             artStyle: data.outline.artStyle,
             mood: args.mood,
             shot: args.shot ?? "new",
-            // previous frame always rides for continuity (the server decides
-            // edit-input vs style-anchor); all reference portraits are
-            // assembled server-side from the playthrough
             previousAssetId: lastAssetIdRef.current ?? undefined,
             playthroughId,
             aspect: aspectRef.current,
           }),
         });
         if (!res.ok) throw new Error(`scene-image ${res.status}`);
-        const { assetId, dataUrl } = await res.json();
+        return res.json();
+      };
+
+      let frame: { dataUrl: string; assetId: string | null } | null = null;
+      const framePromise = resolveFrame()
+        .then((f) => {
+          frame = f;
+          if (f) {
+            const idx = sceneIdxRef.current++;
+            persistBeat({
+              scene: {
+                idx,
+                beatId: args.beat_id,
+                imagePrompt: args.image_prompt,
+                imageAssetId: f.assetId,
+              },
+              marks: [
+                { name: "image-generated", ms: Math.round(performance.now() - t0) },
+              ],
+            });
+          }
+          return f;
+        })
+        .catch(() => null)
+        .finally(() => setGenerating(false));
+
+      const apply = () => {
+        releaseAudioGate(); // even a failed frame must never hold narration
+        if (!frame?.dataUrl) return;
         lastScenePromptRef.current = String(args.image_prompt ?? "");
-        setImageUrl(dataUrl);
+        if (frame.assetId) lastAssetIdRef.current = frame.assetId;
+        setImageUrl(frame.dataUrl);
         playSfx("whoosh");
-        releaseAudioGate();
-        if (assetId) lastAssetIdRef.current = assetId;
-        const idx = sceneIdxRef.current++;
+        setMood(mood);
+        void mixerRef.current?.play(mood);
         persistBeat({
-          scene: {
-            idx,
-            beatId: args.beat_id,
-            imagePrompt: args.image_prompt,
-            imageAssetId: assetId,
-          },
           marks: [{ name: "image-on-screen", ms: Math.round(performance.now() - t0) }],
         });
 
-        // Visual progression: for high-drama moods, paint a follow-up frame
-        // of the same scene (edit mode) and crossfade to it while the
-        // narrator is still talking — the scene visibly moves.
-        const mood = String(args.mood ?? "");
-        if (args.shot !== "edit" && assetId && ["combat", "tense", "triumphant"].includes(mood)) {
+        // drama follow-up: the scene visibly progresses while the narrator
+        // is still in the moment (timed from DISPLAY, not generation)
+        if (
+          args.shot !== "edit" &&
+          frame.assetId &&
+          ["combat", "tense", "triumphant"].includes(String(args.mood))
+        ) {
+          const baseAssetId = frame.assetId;
           setTimeout(() => {
             if (renderSeqRef.current !== seq) return; // a newer scene took over
             void fetch("/api/scene-image", {
@@ -381,7 +395,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
                 prompt: `${args.image_prompt}. A few heartbeats later — the action has visibly progressed.`,
                 artStyle: data.outline.artStyle,
                 shot: "edit",
-                previousAssetId: assetId,
+                previousAssetId: baseAssetId,
                 playthroughId,
                 aspect: aspectRef.current,
               }),
@@ -396,10 +410,12 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
               .catch(() => {});
           }, 6000);
         }
-      } catch {
-        releaseAudioGate(); // never hold narration hostage to a failed image
-      } finally {
-        setGenerating(false);
+      };
+
+      if (queueRef.current) {
+        queueRef.current.pushVisual(apply, framePromise);
+      } else {
+        void framePromise.then(apply);
       }
     },
     [persistBeat, playthroughId, releaseAudioGate],
@@ -809,6 +825,11 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
                 void (queueRef.current?.waitForDrain() ?? Promise.resolve()).then(() => {
                   if (inputEpochRef.current === epoch) {
                     setChoices((cur) => (cur.length ? cur : options));
+                  } else {
+                    // input arrived while draining (often just ambient noise)
+                    // — never DISCARD the options; park them so the watchdog
+                    // can force-reveal instead of leaving a dead screen
+                    pendingChoicesRef.current = options;
                   }
                 });
               }
@@ -860,6 +881,23 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
         lastActivityRef.current = Date.now();
       }
       const idleMs = Date.now() - lastActivityRef.current;
+      // first line of defense: parked choices force-reveal without any model
+      // round-trip — a dead screen with options in hand is never acceptable
+      if (
+        idleMs > 8000 &&
+        !narratorSpeaking &&
+        queueRef.current?.drained !== false &&
+        pendingChoicesRef.current &&
+        choices.length === 0 &&
+        !qte &&
+        !dice &&
+        !ending
+      ) {
+        const parked = pendingChoicesRef.current;
+        pendingChoicesRef.current = null;
+        setChoices((cur) => (cur.length ? cur : parked));
+        return;
+      }
       if (
         idleMs > 30000 &&
         !nudgedRef.current &&
@@ -1068,10 +1106,20 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
   }
   if (phase === "gate" || phase === "connecting") {
     const resume = canResume;
+    const titleCardId = data?.playthrough.state?.assetLibrary?.cards?.title;
     return (
       <Shell>
+        {titleCardId && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={`/api/assets/${titleCardId}`}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover opacity-35"
+            draggable={false}
+          />
+        )}
         <h1
-          className="text-4xl mb-2 tracking-wide"
+          className="relative text-4xl mb-2 tracking-wide"
           style={{ fontFamily: "var(--font-display, Georgia, serif)" }}
         >
           {data?.outline.title ?? ""}
@@ -1136,6 +1184,14 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
           >
             ◈ map
           </button>
+          {data?.playthrough.state?.assetLibrary && (
+            <button
+              onClick={() => setShowCodex(true)}
+              className="bg-black/40 rounded-full px-3 py-1.5 backdrop-blur text-zinc-300 hover:text-amber-300"
+            >
+              ❖ codex
+            </button>
+          )}
           <MicPicker
             compact
             value={micDevice}
@@ -1186,6 +1242,19 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
 
       {ending && (
         <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm p-8 text-center">
+          {(() => {
+            const cardId =
+              data?.playthrough.state?.assetLibrary?.cards?.[ending.endingId];
+            return cardId ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={`/api/assets/${cardId}`}
+                alt=""
+                className="absolute inset-0 h-full w-full object-cover opacity-30 -z-10"
+                draggable={false}
+              />
+            ) : null;
+          })()}
           <p
             className="text-amber-300 text-sm tracking-[0.3em] uppercase mb-4"
           >
@@ -1219,9 +1288,18 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
           <UIRenderer
             kind={genUi.kind}
             spec={(genUi as { spec: unknown }).spec}
+            thumbs={data?.playthrough.state?.assetLibrary?.props}
             onClose={() => setGenUi(null)}
           />
         ))}
+
+      {showCodex && (
+        <WorldForge
+          playthroughId={playthroughId}
+          readonly
+          onClose={() => setShowCodex(false)}
+        />
+      )}
 
       {showRecap && data && (
         <ChapterRecap

@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MusicMixer, bankForGenre } from "@/components/audio/mixer";
 import CameraCapture from "./CameraCapture";
+import WorldForge from "./WorldForge";
 import type { CharacterSheet, Stat } from "@/lib/storyEngine/types";
 import "@/components/game/overlays.css";
 
@@ -175,10 +176,11 @@ export default function CharacterCreator({
       // let the base image mount before the portrait crossfades in
       setTimeout(() => setPortraitIn(true), 350);
 
-      // while the player admires their portrait, pre-paint the opening
-      // scenes (first beat + its branches) so the story starts instantly
+      // while the player admires their portrait, light the World Forge —
+      // the whole visual world (scenes, cast, props, cards) starts painting
+      // and streams into the gallery below the reveal
       if (playthroughId) {
-        void fetch("/api/prewarm", {
+        void fetch("/api/forge", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
@@ -511,6 +513,25 @@ export default function CharacterCreator({
             >
               {playthroughId ? "Enter the story" : "Continue"}
             </button>
+
+            {/* the World Forge: watch the story's entire visual world get
+                painted while deciding when to step in */}
+            {playthroughId && (
+              <div
+                className="mt-6 w-full"
+                style={{ animation: "vn-rise-in 700ms ease-out 2100ms both" }}
+              >
+                <div
+                  aria-hidden
+                  className="mb-7 h-px w-full"
+                  style={{
+                    background:
+                      "linear-gradient(to right, transparent, rgba(217,179,108,0.4), transparent)",
+                  }}
+                />
+                <WorldForge playthroughId={playthroughId} />
+              </div>
+            )}
           </section>
         )}
       </main>

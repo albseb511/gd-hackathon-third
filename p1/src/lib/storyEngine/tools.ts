@@ -26,7 +26,7 @@ export const narratorTools: FunctionDeclaration[] = [
         image_prompt: {
           type: Type.STRING,
           description:
-            "Vivid visual description of the scene: location, characters present, action, lighting. No style words — style is applied by the pipeline.",
+            "Vivid visual description of the scene: location, action, lighting, and the SHOT (wide establishing / two-shot / over-the-shoulder / close-up on a character / detail insert). NAME every character present — named characters keep their faces. Vary the camera like a film: many frames should feature other characters or the world WITHOUT the protagonist. No style words — style is applied by the pipeline.",
         },
         scene_summary: {
           type: Type.STRING,

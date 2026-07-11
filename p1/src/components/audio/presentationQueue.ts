@@ -24,7 +24,8 @@ export interface SpeakerInfo {
   line?: string; // the exact line, for TTS segments
 }
 
-const TTS_WAIT_MS = 9000;
+// cold serverless TTS can take >10s; a skipped clip is a silent character
+const TTS_WAIT_MS = 15000;
 
 export class PresentationQueue {
   private ctx: AudioContext | null = null;
@@ -38,6 +39,7 @@ export class PresentationQueue {
 
   onSpeaking: (speaking: boolean) => void = () => {};
   onSpeaker: (info: SpeakerInfo | null) => void = () => {};
+  onClipResult: (ok: boolean, speaker: string) => void = () => {};
 
   // must be called from a user gesture at least once
   ensureCtx(): AudioContext {
@@ -169,7 +171,10 @@ export class PresentationQueue {
             setTimeout(r, 400); // heartbeat so turn-end drains promptly
           });
           this.wake = null;
-          // if nothing new and nothing after us, and audio drained → idle out
+          // if nothing new and nothing after us, and audio drained → idle out.
+          // The segment MUST leave the queue here: a fully-played segment
+          // lingering keeps `drained` false forever, which deadlocks the
+          // choice reveal and suppresses the watchdog.
           if (
             this.segments[0] === seg &&
             seg.scheduled >= seg.chunks.length &&
@@ -177,8 +182,7 @@ export class PresentationQueue {
             this.segments.length === 1 &&
             !this.speaking
           ) {
-            // keep the segment as the open tail but stop pumping
-            if (seg.chunks.length === 0) this.segments.shift();
+            this.segments.shift();
             break;
           }
           continue;
@@ -193,6 +197,7 @@ export class PresentationQueue {
         ]);
         if (this.epoch !== epoch) break;
         this.onSpeaker({ speaker: seg.speaker, line: seg.line });
+        this.onClipResult(!!clip, seg.speaker);
         if (clip) {
           this.schedule(clip);
           await this.waitUntilCursor(epoch);

@@ -101,6 +101,8 @@ export interface PlayState {
   aura: { traits: string[]; reputation: string };
   // beatId → pre-generated scene asset (prewarmed at character creation)
   sceneCache?: Record<string, string>;
+  // NPC name → portrait asset, attached as reference whenever they're in-scene
+  npcPortraits?: Record<string, string>;
 }
 
 export const initialPlayState = (firstBeatId: string): PlayState => ({

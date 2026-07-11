@@ -70,6 +70,9 @@ type GenUiPanel =
   | { kind: "artifact_html"; html: string }
   | { kind: string; spec: unknown };
 
+// the player's tapped/typed moves are spoken in their character's own voice
+const VOICE_PLAYER_LINES = true;
+
 // tool names must never reach the player's eyes even if the model slips
 const TOOL_LEAK_RE =
   /\b(?:and\s+)?(?:render_scene|present_choices|show_ui|speak_as|update_state|start_qte|skill_check|end_story)\b[.,]?\s*/gi;
@@ -243,10 +246,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
           prompt,
           artStyle: data.outline.artStyle,
           shot,
-          previousAssetId: shot === "edit" ? lastAssetIdRef.current : undefined,
-          referenceAssetIds: data.characters
-            .map((c) => c.portraitAssetId)
-            .filter((x): x is string => Boolean(x)),
+          previousAssetId: lastAssetIdRef.current ?? undefined,
           playthroughId,
           aspect: aspectRef.current,
         }),
@@ -341,12 +341,10 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
             artStyle: data.outline.artStyle,
             mood: args.mood,
             shot: args.shot ?? "new",
-            previousAssetId:
-              args.shot === "edit" ? lastAssetIdRef.current : undefined,
-            // protagonist consistency: portrait rides along as reference
-            referenceAssetIds: data.characters
-              .map((c) => c.portraitAssetId)
-              .filter((x): x is string => Boolean(x)),
+            // previous frame always rides for continuity (the server decides
+            // edit-input vs style-anchor); all reference portraits are
+            // assembled server-side from the playthrough
+            previousAssetId: lastAssetIdRef.current ?? undefined,
             playthroughId,
             aspect: aspectRef.current,
           }),
@@ -863,7 +861,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
       }
       const idleMs = Date.now() - lastActivityRef.current;
       if (
-        idleMs > 14000 &&
+        idleMs > 30000 &&
         !nudgedRef.current &&
         !narratorSpeaking &&
         // audio still queued or choices already on their way ≠ a stall
@@ -904,6 +902,10 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
           mixerRef.current?.setSpeaking(s);
         };
         q.onSpeaker = setSpeakerInfo;
+        q.onClipResult = (ok, speaker) => {
+          console.info(`[voice] ${speaker}: clip ${ok ? "played" : "MISSED"}`);
+          persistBeat({ marks: [{ name: ok ? "tts-played" : "tts-missed", ms: 0 }] });
+        };
         queueRef.current = q;
       }
       if (!mixerRef.current && dataRef.current) {
@@ -941,7 +943,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
       setErrorMsg(e instanceof Error ? e.message : String(e));
       setPhase("error");
     }
-  }, [connect, audio, releaseAudioGate, micDevice]);
+  }, [connect, audio, releaseAudioGate, micDevice, persistBeat]);
 
   useEffect(
     () => () => {
@@ -967,6 +969,34 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
     utteranceRef.current = text;
     provisionalFiredRef.current = false;
     setChoices([]);
+
+    // the player's move is spoken in their own character's voice
+    if (VOICE_PLAYER_LINES && queueRef.current) {
+      const me = dataRef.current?.characters[0];
+      const spoken = text.replace(/^I choose:\s*/i, "").trim();
+      if (me && spoken.length > 1 && spoken.length < 160) {
+        let voiceName = me.voiceName;
+        if (!voiceName) {
+          let h = 0;
+          for (const ch of me.name) h = (h * 31 + ch.charCodeAt(0)) | 0;
+          voiceName = CHARACTER_VOICE_POOL[Math.abs(h) % CHARACTER_VOICE_POOL.length];
+        }
+        const clip = fetch("/api/tts", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            text: spoken,
+            voiceName,
+            style: "resolute, first person, in the moment",
+          }),
+        })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((d: { pcmBase64?: string } | null) => d?.pcmBase64 ?? null)
+          .catch(() => null);
+        queueRef.current.pushTts(me.name, spoken, clip);
+      }
+    }
+
     sessionRef.current?.sendClientContent({
       turns: [{ role: "user", parts: [{ text }] }],
     });
@@ -998,7 +1028,9 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
       playSfx(r.result === "win" ? "win" : "lose");
       setMood(r.result === "win" ? "triumphant" : "tense");
       if (!q) return;
-      respond(q.id, q.name, r, FunctionResponseScheduling.INTERRUPT);
+      // WHEN_IDLE, not INTERRUPT: the narrator reacts once its current line
+      // finishes — INTERRUPT cuts speech mid-word and flushes queued dialogue
+      respond(q.id, q.name, r, FunctionResponseScheduling.WHEN_IDLE);
       persistBeat({
         scene: { idx: Math.max(0, sceneIdxRef.current - 1), qteResult: r },
       });
@@ -1012,7 +1044,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
       setDice(null);
       playSfx(r.result === "success" ? "win" : "lose");
       if (!d) return;
-      respond(d.id, d.name, r, FunctionResponseScheduling.INTERRUPT);
+      respond(d.id, d.name, r, FunctionResponseScheduling.WHEN_IDLE);
       persistBeat({
         scene: { idx: Math.max(0, sceneIdxRef.current - 1), diceResult: r },
       });

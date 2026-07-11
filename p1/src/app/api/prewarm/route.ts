@@ -47,43 +47,82 @@ export async function POST(req: NextRequest) {
     if (row) referenceImages = [{ data: row.bytes, mime: row.mime }];
   }
 
-  const results = await Promise.all(
-    targets.map((beat) =>
-      withTiming("prewarm-image", { playthroughId: body.playthroughId }, () =>
-        generateImage({
-          prompt: `${beat.sceneHint}. Opening chapter of the story.`,
-          artStyle: ctx.outline.artStyle,
-          referenceImages,
-          aspectRatio: body.aspect ?? "16:9",
-          timeoutMs: 25000,
-        }),
-      )
-        .then(async (img) => {
-          const [inserted] = await db!
-            .insert(assets)
-            .values({
-              kind: "scene",
-              playthroughId: body.playthroughId,
-              mime: img.mime,
-              bytes: img.data,
-            })
-            .returning({ id: assets.id });
-          return { beatId: beat.id, assetId: inserted.id };
-        })
-        .catch(() => null),
-    ),
+  const sceneJobs = targets.map((beat) =>
+    withTiming("prewarm-image", { playthroughId: body.playthroughId }, () =>
+      generateImage({
+        prompt: `${beat.sceneHint}. Opening chapter of the story.`,
+        artStyle: ctx.outline.artStyle,
+        referenceImages,
+        aspectRatio: body.aspect ?? "16:9",
+        timeoutMs: 25000,
+      }),
+    )
+      .then(async (img) => {
+        const [inserted] = await db!
+          .insert(assets)
+          .values({
+            kind: "scene",
+            playthroughId: body.playthroughId,
+            mime: img.mime,
+            bytes: img.data,
+          })
+          .returning({ id: assets.id });
+        return { beatId: beat.id, assetId: inserted.id };
+      })
+      .catch(() => null),
   );
 
-  const cache: Record<string, string> = {};
-  for (const r of results) if (r) cache[r.beatId] = r.assetId;
+  // NPC portraits: one per cast member, reused as a reference image whenever
+  // that character is in-scene — this is what keeps Kane looking like Kane
+  const npcJobs = ctx.outline.characters.map((npc) =>
+    withTiming("prewarm-portrait", { playthroughId: body.playthroughId }, () =>
+      generateImage({
+        prompt: `Character portrait of ${npc.name}: ${npc.visualDescription}. Waist-up, dramatic lighting, plain dark background.`,
+        artStyle: ctx.outline.artStyle,
+        aspectRatio: "3:4",
+        timeoutMs: 25000,
+      }),
+    )
+      .then(async (img) => {
+        const [inserted] = await db!
+          .insert(assets)
+          .values({
+            kind: "portrait",
+            playthroughId: body.playthroughId,
+            mime: img.mime,
+            bytes: img.data,
+          })
+          .returning({ id: assets.id });
+        return { name: npc.name, assetId: inserted.id };
+      })
+      .catch(() => null),
+  );
 
-  if (Object.keys(cache).length) {
-    const state = { ...(ctx.state as PlayState), sceneCache: cache };
+  const [sceneResults, npcResults] = await Promise.all([
+    Promise.all(sceneJobs),
+    Promise.all(npcJobs),
+  ]);
+
+  const cache: Record<string, string> = {};
+  for (const r of sceneResults) if (r) cache[r.beatId] = r.assetId;
+  const npcPortraits: Record<string, string> = {};
+  for (const r of npcResults) if (r) npcPortraits[r.name] = r.assetId;
+
+  if (Object.keys(cache).length || Object.keys(npcPortraits).length) {
+    const state = {
+      ...(ctx.state as PlayState),
+      sceneCache: cache,
+      npcPortraits,
+    };
     await db
       .update(playthroughs)
       .set({ state })
       .where(eq(playthroughs.id, body.playthroughId));
   }
 
-  return NextResponse.json({ ok: true, warmed: Object.keys(cache).length });
+  return NextResponse.json({
+    ok: true,
+    warmed: Object.keys(cache).length,
+    npcPortraits: Object.keys(npcPortraits).length,
+  });
 }

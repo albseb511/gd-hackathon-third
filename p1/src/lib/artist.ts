@@ -57,17 +57,23 @@ function buildParts(
     });
   }
 
+  // "panels" in the stored art style invites comic layouts — neutralize at
+  // generation time rather than migrating stored outlines
+  const style = artStyle.replace(/panels?/gi, "frames");
   let text =
     shot === "edit"
       ? `Edit this image: ${prompt}. Keep everything else — characters, faces, lighting, background — exactly consistent.`
-      : `${artStyle}. ${prompt}`;
+      : `${style}. ${prompt}`;
 
   if (mood) text += ` Mood: ${mood}.`;
 
-  if (refs.length > 0) {
+  if (refs.length > 0 && !prompt.includes("Reference image")) {
     text +=
       " The protagonist is the person in the first reference image — keep face, hair and outfit consistent.";
   }
+
+  text +=
+    " — ONE full-bleed cinematic frame. Absolutely NO text, NO speech bubbles, NO captions, NO panel borders, NO comic layout.";
 
   parts.push({ text });
   return parts;

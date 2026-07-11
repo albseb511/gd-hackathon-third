@@ -20,7 +20,7 @@ export const FALLBACK_CHARACTER: CharacterSheet = {
 export interface PlaythroughContext {
   outline: StoryOutline;
   state: PlayState;
-  charactersSheets: CharacterSheet[];
+  charactersSheets: (CharacterSheet & { portraitAssetId?: string | null })[];
   summary: string | null;
   recentScenes: { narration: string }[];
   sceneCount: number;
@@ -64,7 +64,11 @@ export async function loadPlaythroughContext(
     .limit(3);
 
   const parts = await db
-    .select({ sheet: characters.sheet })
+    .select({
+      sheet: characters.sheet,
+      name: characters.name,
+      portraitAssetId: characters.portraitAssetId,
+    })
     .from(participants)
     .innerJoin(characters, eq(participants.characterId, characters.id))
     .where(eq(participants.playthroughId, playthroughId));
@@ -79,7 +83,11 @@ export async function loadPlaythroughContext(
     outline,
     state,
     charactersSheets: parts.length
-      ? parts.map((p) => p.sheet as CharacterSheet)
+      ? parts.map((p) => ({
+          ...(p.sheet as CharacterSheet),
+          name: p.name,
+          portraitAssetId: p.portraitAssetId,
+        }))
       : [FALLBACK_CHARACTER],
     summary: pt.summary,
     recentScenes: recent

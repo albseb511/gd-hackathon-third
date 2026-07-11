@@ -25,6 +25,7 @@ import ChoiceBar from "@/components/game/ChoiceBar";
 import DiceRoll from "@/components/game/DiceRoll";
 import ChapterRecap from "@/components/analytics/ChapterRecap";
 import WorldForge from "@/components/character/WorldForge";
+import CastPanel from "@/components/game/CastPanel";
 import UIRenderer from "@/components/genui/UIRenderer";
 import ArtifactFrame from "@/components/genui/ArtifactFrame";
 import Mash from "@/components/game/qte/Mash";
@@ -75,10 +76,31 @@ type GenUiPanel =
 // the player's tapped/typed moves are spoken in their character's own voice
 const VOICE_PLAYER_LINES = true;
 
-// tool names must never reach the player's eyes even if the model slips
+// The narrator occasionally VOICES a tool call (e.g. the update_state JSON
+// patch) into its speech transcript. None of that machinery may reach the
+// player's eyes — strip tool names, spoken invocations, and JSON debris.
 const TOOL_LEAK_RE =
   /\b(?:and\s+)?(?:render_scene|present_choices|show_ui|speak_as|update_state|start_qte|skill_check|end_story)\b[.,]?\s*/gi;
-const scrubCaption = (s: string) => s.replace(TOOL_LEAK_RE, "").replace(/\s{2,}/g, " ");
+const scrubCaption = (raw: string): string => {
+  let s = raw.replace(TOOL_LEAK_RE, "");
+  // Voiced JSON/tool debris shows up as a contiguous garbage PREFIX before the
+  // real narration. If we see JSON markers, cut to the clean tail after the
+  // last JSON closer — but only if that tail is real sentence-like prose.
+  if (/[{}]|"\s*:\s*"/.test(s)) {
+    const closers = [...s.matchAll(/[}\]]['"]*\)?/g)];
+    if (closers.length) {
+      const last = closers[closers.length - 1];
+      const cut = (last.index ?? 0) + last[0].length;
+      const tail = s.slice(cut).replace(/^[\s,:;."')\]]+/, "").trim();
+      if (tail.length > 20 && /[a-z]{3,}\s+[a-z]{3,}/i.test(tail)) s = tail;
+    }
+  }
+  // belt-and-braces: nuke any residual JSON tokens left in place
+  s = s
+    .replace(/"[\w .]+"\s*:\s*("[^"]*"|-?\d+(?:\.\d+)?|true|false|null)?/g, " ")
+    .replace(/[{}[\]]/g, " ");
+  return s.replace(/\s{2,}/g, " ").trim();
+};
 
 export default function GameStage({ playthroughId }: { playthroughId: string }) {
   const audio = useLiveAudio();
@@ -156,6 +178,9 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
   // stall watchdog: when both sides go quiet with nothing on screen, nudge
   const lastActivityRef = useRef(0);
   const nudgedRef = useRef(false);
+  // auto-advance guard: pick a default only once per choice set
+  const autoAdvancedRef = useRef(false);
+  const onChooseRef = useRef<(option: string) => void>(() => {});
 
   // render mirrors of ref-held game data
   const [data, setData] = useState<PlaythroughData | null>(null);
@@ -175,6 +200,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
   const revealChoices = useCallback((options: string[]) => {
     setChoices((cur) => {
       if (cur.length || options.length === 0) return cur;
+      autoAdvancedRef.current = false; // fresh fork — auto-advance re-armed
       void mixerRef.current?.play("decision");
       return options;
     });
@@ -184,6 +210,31 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
   const [showCodex, setShowCodex] = useState(false);
   const [paused, setPaused] = useState(false);
   const pausedRef = useRef(false);
+  const [showCast, setShowCast] = useState(false);
+  // which cast members are currently on screen — synced to the scene image
+  // and to whoever just spoke
+  const [charactersInView, setCharactersInView] = useState<string[]>([]);
+  const namesInText = useCallback((text: string): string[] => {
+    const names = dataRef.current?.outline.characters.map((c) => c.name) ?? [];
+    const lower = text.toLowerCase();
+    return names.filter((n) =>
+      n
+        .toLowerCase()
+        .split(/\s+/)
+        .some((part) => part.length > 2 && lower.includes(part)),
+    );
+  }, []);
+  // true while ANY output is still playing OR queued (narrator + every
+  // character line): the input box and mic prompt stay hidden until the
+  // whole dialogue pipeline is empty, so nothing overlaps a line in flight
+  const [outputBusy, setOutputBusy] = useState(false);
+  useEffect(() => {
+    if (phase !== "live") return;
+    const id = setInterval(() => {
+      setOutputBusy(queueRef.current ? !queueRef.current.drained : false);
+    }, 120);
+    return () => clearInterval(id);
+  }, [phase]);
   const [pingMs, setPingMs] = useState<number | null>(null);
 
   // network latency indicator: featherweight round-trip every 10s while live
@@ -438,6 +489,8 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
         playSfx("whoosh");
         setMood(mood);
         lastSceneMoodRef.current = mood;
+        // a new scene resets who's on camera, derived from the shot's prompt
+        setCharactersInView(namesInText(String(args.image_prompt ?? "")));
         void mixerRef.current?.play(mood);
         persistBeat({
           marks: [{ name: "image-on-screen", ms: Math.round(performance.now() - t0) }],
@@ -483,7 +536,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
         void framePromise.then(apply);
       }
     },
-    [persistBeat, playthroughId, releaseAudioGate],
+    [persistBeat, playthroughId, releaseAudioGate, namesInText],
   );
 
   // Provisional frame from the player's OWN words: the scene starts moving
@@ -609,6 +662,19 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
           }
           case "speak_as": {
             turnFlagsRef.current.hadSpeakAs = true;
+            // whoever speaks is, by definition, in the scene
+            {
+              const spk = String(args.character_name ?? "").trim();
+              if (spk) {
+                setCharactersInView((cur) =>
+                  cur.some((n) => n.toLowerCase() === spk.toLowerCase())
+                    ? cur
+                    : namesInText(spk).length
+                      ? [...cur, ...namesInText(spk).filter((n) => !cur.includes(n))]
+                      : cur,
+                );
+              }
+            }
             respond(fc.id, fc.name, { ok: true });
             const data = dataRef.current;
             const who = String(args.character_name ?? "").trim();
@@ -679,7 +745,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
         }
       }
     },
-    [respond, execRenderScene, persistBeat, playthroughId],
+    [respond, execRenderScene, persistBeat, playthroughId, namesInText],
   );
 
   // ---- Director: continuity guard + missed-tool fill + social read ----
@@ -961,6 +1027,22 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
         lastActivityRef.current = Date.now();
       }
       const idleMs = Date.now() - lastActivityRef.current;
+      // guardrail: choices sitting unanswered for a long stretch — the player
+      // is away, or the mic is only catching ambient/off-topic noise — pick a
+      // sensible default and keep the story moving rather than stalling
+      if (
+        choices.length > 0 &&
+        idleMs > 40000 &&
+        !autoAdvancedRef.current &&
+        !outputBusy &&
+        !qte &&
+        !dice &&
+        !ending
+      ) {
+        autoAdvancedRef.current = true;
+        onChooseRef.current(choices[0]);
+        return;
+      }
       // first line of defense: parked choices force-reveal without any model
       // round-trip — a dead screen with options in hand is never acceptable
       if (
@@ -1006,7 +1088,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
       }
     }, 3000);
     return () => clearInterval(timer);
-  }, [phase, narratorSpeaking, choices.length, qte, dice, ending, revealChoices]);
+  }, [phase, narratorSpeaking, choices, qte, dice, ending, revealChoices, outputBusy]);
 
   const begin = useCallback(async () => {
     setPhase("connecting");
@@ -1135,6 +1217,9 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
     },
     [sendText],
   );
+  useEffect(() => {
+    onChooseRef.current = onChoose;
+  }, [onChoose]);
 
   const onQteDone = useCallback(
     (r: { result: "win" | "lose"; accuracy: number; timeMs: number }) => {
@@ -1240,7 +1325,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
         imageUrl={imageUrl}
         caption={speakerInfo?.line ? `“${speakerInfo.line}”` : caption}
         speaker={speakerInfo?.speaker ?? null}
-        raiseCaption={!qte && !dice && !ending && (choices.length > 0 || !narratorSpeaking)}
+        raiseCaption={!qte && !dice && !ending && !outputBusy}
         mood={mood}
         generating={generating}
       />
@@ -1289,6 +1374,14 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
               ❖ codex
             </button>
           )}
+          {(data?.outline.characters.length ?? 0) > 0 && (
+            <button
+              onClick={() => setShowCast(true)}
+              className="bg-black/40 rounded-full px-3 py-1.5 backdrop-blur text-zinc-300 hover:text-amber-300"
+            >
+              ❦ cast
+            </button>
+          )}
           <MicPicker
             compact
             value={micDevice}
@@ -1308,14 +1401,15 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
         </div>
       </div>
 
-      {/* always give the player a way in: buttons when offered, free
-          text + mic affordance whenever the stage is otherwise idle */}
+      {/* the bar appears only when the output pipeline is fully drained —
+          never while the narrator or a character is mid-line, so a dialogue
+          in flight is never interrupted or overlapped */}
       <ChoiceBar
         options={choices}
-        visible={!qte && !dice && !ending && (choices.length > 0 || !narratorSpeaking)}
+        visible={!qte && !dice && !ending && !outputBusy}
         onChoose={onChoose}
         onFreeText={sendText}
-        listening={audio.micActive && !narratorSpeaking}
+        listening={audio.micActive && !outputBusy}
       />
 
       {qte?.type === "mash" && (
@@ -1397,6 +1491,18 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
           onClose={() => setShowCodex(false)}
         />
       )}
+
+      <CastPanel
+        characters={data?.outline.characters ?? []}
+        portraits={
+          data?.playthrough.state?.assetLibrary?.npcs ??
+          data?.playthrough.state?.npcPortraits ??
+          {}
+        }
+        inView={charactersInView}
+        open={showCast}
+        onClose={() => setShowCast(false)}
+      />
 
       {paused && (
         <div

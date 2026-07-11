@@ -27,14 +27,18 @@ type VisualSegment = {
   ready: Promise<unknown> | null;
   apply: () => void;
 };
-// Streamed dialogue: audio chunks scheduled as they download — the character
-// starts speaking on the first chunk, sentences pipeline behind it.
+// Streamed dialogue: ONE segment per line, carrying ALL its sentence streams.
+// Sentences play back-to-back inside the group — the speaker enters once and
+// exits once, no flicker between sentences.
+export type SentenceFeed = {
+  feed: AsyncGenerator<string, void, unknown>; // yields base64 PCM chunks
+  cancel: () => void;
+};
 type TtsStreamSegment = {
   kind: "tts-stream";
   speaker: string;
   line: string;
-  feed: AsyncGenerator<string, void, unknown>; // yields base64 PCM chunks
-  cancel: () => void;
+  feeds: SentenceFeed[];
 };
 type Segment = LiveSegment | TtsSegment | VisualSegment | TtsStreamSegment;
 
@@ -96,16 +100,11 @@ export class PresentationQueue {
     this.poke();
   }
 
-  /** A streamed character line: chunks play as they arrive, in stream order. */
-  pushTtsStream(
-    speaker: string,
-    line: string,
-    feed: AsyncGenerator<string, void, unknown>,
-    cancel: () => void,
-  ) {
+  /** A streamed character line: all its sentences as ONE dialogue group. */
+  pushTtsStream(speaker: string, line: string, feeds: SentenceFeed[]) {
     const tail = this.segments[this.segments.length - 1];
     if (tail?.kind === "live") tail.closed = true;
-    this.segments.push({ kind: "tts-stream", speaker, line, feed, cancel });
+    this.segments.push({ kind: "tts-stream", speaker, line, feeds });
     this.poke();
   }
 
@@ -122,9 +121,11 @@ export class PresentationQueue {
     this.epoch++;
     for (const s of this.segments) {
       if (s.kind === "tts-stream") {
-        try {
-          s.cancel();
-        } catch {}
+        for (const f of s.feeds) {
+          try {
+            f.cancel();
+          } catch {}
+        }
       }
     }
     this.segments = [];
@@ -269,23 +270,30 @@ export class PresentationQueue {
         }
 
         if (seg.kind === "tts-stream") {
-          // let prior audio finish, then schedule chunks AS THEY DOWNLOAD
+          // let prior audio finish, then play the WHOLE dialogue group —
+          // every sentence stream in order, one speaker enter/exit, chunks
+          // scheduled as they download (later sentences generate in parallel)
           await this.waitUntilCursor(epoch);
           if (this.epoch !== epoch) break;
           this.onSpeaker({ speaker: seg.speaker, line: seg.line });
           let got = false;
-          try {
-            // first-chunk timeout lives inside the feed (speakLine wraps it)
-            for await (const chunk of seg.feed) {
-              if (this.epoch !== epoch) {
-                seg.cancel();
-                break;
+          for (const sentence of seg.feeds) {
+            if (this.epoch !== epoch) break;
+            try {
+              // first-chunk timeout lives inside the feed (speakLine wraps it)
+              for await (const chunk of sentence.feed) {
+                if (this.epoch !== epoch) {
+                  sentence.cancel();
+                  break;
+                }
+                got = true;
+                this.schedule(chunk);
+                // keep the speaking flag hot across sentence boundaries
+                this.onSpeaking(true);
               }
-              got = true;
-              this.schedule(chunk);
+            } catch {
+              // this sentence's stream died; carry on to the next
             }
-          } catch {
-            // stream died mid-line; whatever played, played
           }
           this.onClipResult(got, seg.speaker);
           if (this.epoch !== epoch) break;

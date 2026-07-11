@@ -5,7 +5,7 @@
 // tts-stream segment so playback starts on the first downloaded chunk
 // (~2s) while later sentences generate concurrently.
 
-import { PresentationQueue } from "./presentationQueue";
+import { PresentationQueue, SentenceFeed } from "./presentationQueue";
 
 const FIRST_CHUNK_TIMEOUT_MS = 15000;
 const STALL_TIMEOUT_MS = 10000;
@@ -92,8 +92,9 @@ function streamSentence(
 
 /**
  * Speak one character line through the presentation queue, streamed.
- * All sentence requests start immediately (parallel generation); segments
- * queue in order so playback is seamless and correctly sequenced.
+ * All sentence requests start immediately (parallel generation), but the
+ * whole line rides as ONE dialogue group — the speaker enters once, the
+ * sentences play back-to-back, the speaker exits once. No flicker.
  */
 export function speakLine(
   queue: PresentationQueue,
@@ -102,10 +103,8 @@ export function speakLine(
   voiceName: string,
   style: string,
 ) {
-  const sentences = splitSentences(line);
-  for (const sentence of sentences) {
-    const { feed, cancel } = streamSentence(sentence, voiceName, style);
-    // caption shows the full line for context, per-sentence audio underneath
-    queue.pushTtsStream(speaker, line, feed, cancel);
-  }
+  const feeds: SentenceFeed[] = splitSentences(line).map((sentence) =>
+    streamSentence(sentence, voiceName, style),
+  );
+  queue.pushTtsStream(speaker, line, feeds);
 }

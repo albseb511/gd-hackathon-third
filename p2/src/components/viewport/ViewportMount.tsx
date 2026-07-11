@@ -2,7 +2,6 @@
 
 // Client-only mount: R3F cannot server-render, so load the Canvas with ssr:false.
 import dynamic from "next/dynamic";
-import { emptyRoom } from "@/scene/defaults";
 
 const Viewport = dynamic(() => import("./Viewport"), {
   ssr: false,
@@ -14,6 +13,5 @@ const Viewport = dynamic(() => import("./Viewport"), {
 });
 
 export default function ViewportMount() {
-  const design = emptyRoom();
-  return <Viewport design={design} />;
+  return <Viewport />;
 }

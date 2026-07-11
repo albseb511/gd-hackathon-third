@@ -15,6 +15,7 @@ import {
 } from "@google/genai";
 import { useLiveAudio } from "@/components/audio/useLiveAudio";
 import { MusicMixer, bankForGenre } from "@/components/audio/mixer";
+import { playSfx } from "@/components/audio/sfx";
 import SceneCanvas from "@/components/game/SceneCanvas";
 import ChoiceBar from "@/components/game/ChoiceBar";
 import DiceRoll from "@/components/game/DiceRoll";
@@ -87,6 +88,17 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
   const lastScenePromptRef = useRef<string>("");
   const turnFlagsRef = useRef({ hadRenderScene: false, hadChoices: false });
   const lastPlayerTextRef = useRef("");
+  // choices are buffered until the narrator finishes the turn — no mid-speech
+  // option swaps on screen
+  const pendingChoicesRef = useRef<string[] | null>(null);
+  // caption updates are throttled to kill per-chunk layout jank
+  const captionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // opening gate: hold narrator audio until the first scene image is visible
+  const audioGateRef = useRef<{ active: boolean; queue: string[] }>({
+    active: true,
+    queue: [],
+  });
+  const renderSeqRef = useRef(0);
   // speculative branch pre-generation: option → in-flight/settled image
   const speculativeRef = useRef<Map<string, Promise<{ dataUrl: string; assetId: string | null } | null>>>(
     new Map(),
@@ -165,14 +177,29 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
     [],
   );
 
+  // release the opening audio gate: flush anything queued and play live after
+  const releaseAudioGate = useCallback(() => {
+    const gate = audioGateRef.current;
+    if (!gate.active) return;
+    gate.active = false;
+    for (const chunk of gate.queue) audio.playChunk(chunk);
+    gate.queue = [];
+  }, [audio]);
+
   // ---- tool executors ----
   const execRenderScene = useCallback(
     async (args: Record<string, unknown>) => {
       const t0 = performance.now();
+      const seq = ++renderSeqRef.current;
       setGenerating(true);
       setMood((args.mood as Mood) ?? "explore");
       void mixerRef.current?.play((args.mood as Mood) ?? "explore");
       const data = dataRef.current!;
+      // story position advances with the scene, not only with update_state
+      if (typeof args.beat_id === "string" && stateRef.current) {
+        stateRef.current = applyNarratorPatch(stateRef.current, {}, args.beat_id);
+        persistBeat({ statePatch: { state: stateRef.current } });
+      }
       try {
         const res = await fetch("/api/scene-image", {
           method: "POST",
@@ -195,6 +222,8 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
         const { assetId, dataUrl } = await res.json();
         lastScenePromptRef.current = String(args.image_prompt ?? "");
         setImageUrl(dataUrl);
+        playSfx("whoosh");
+        releaseAudioGate();
         if (assetId) lastAssetIdRef.current = assetId;
         const idx = sceneIdxRef.current++;
         persistBeat({
@@ -206,13 +235,42 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
           },
           marks: [{ name: "image-on-screen", ms: Math.round(performance.now() - t0) }],
         });
+
+        // Visual progression: for high-drama moods, paint a follow-up frame
+        // of the same scene (edit mode) and crossfade to it while the
+        // narrator is still talking — the scene visibly moves.
+        const mood = String(args.mood ?? "");
+        if (args.shot !== "edit" && assetId && ["combat", "tense", "triumphant"].includes(mood)) {
+          setTimeout(() => {
+            if (renderSeqRef.current !== seq) return; // a newer scene took over
+            void fetch("/api/scene-image", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                prompt: `${args.image_prompt}. A few heartbeats later — the action has visibly progressed.`,
+                artStyle: data.outline.artStyle,
+                shot: "edit",
+                previousAssetId: assetId,
+                playthroughId,
+              }),
+            })
+              .then((r) => (r.ok ? r.json() : null))
+              .then((follow: { assetId: string | null; dataUrl: string } | null) => {
+                if (follow?.dataUrl && renderSeqRef.current === seq) {
+                  setImageUrl(follow.dataUrl);
+                  if (follow.assetId) lastAssetIdRef.current = follow.assetId;
+                }
+              })
+              .catch(() => {});
+          }, 6000);
+        }
       } catch {
-        // keep previous image; Ken Burns hides the gap
+        releaseAudioGate(); // never hold narration hostage to a failed image
       } finally {
         setGenerating(false);
       }
     },
-    [persistBeat, playthroughId],
+    [persistBeat, playthroughId, releaseAudioGate],
   );
 
   const handleToolCall = useCallback(
@@ -229,7 +287,9 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
             turnFlagsRef.current.hadChoices = true;
             respond(fc.id, fc.name, { ok: true });
             const options = (args.options as string[]) ?? [];
-            setChoices(options);
+            // buffer: options appear when the narrator finishes speaking,
+            // never mutate mid-sentence
+            pendingChoicesRef.current = options;
             // Speculative pre-generation: render every branch's likely next
             // frame in parallel while the player is deciding. Decision time
             // usually exceeds generation time, so the pick swaps in instantly.
@@ -267,6 +327,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
             setMood("combat");
             break;
           case "skill_check":
+            playSfx("dice");
             setDice({
               id: fc.id!,
               name: fc.name!,
@@ -303,6 +364,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
               .then((r) => (r.ok ? r.json() : null))
               .then((panel: GenUiPanel | null) => {
                 if (panel) {
+                  playSfx("pop");
                   setGenUi(panel);
                   persistBeat({
                     scene: { idx: Math.max(0, sceneIdxRef.current - 1), genUi: panel },
@@ -380,7 +442,10 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
             shot: "new",
           });
         }
-        if (v.missedChoices) setChoices(v.missedChoices);
+        // never fight the narrator: only fill choices if none are up
+        if (v.missedChoices && !pendingChoicesRef.current) {
+          setChoices((cur) => (cur.length ? cur : v.missedChoices!));
+        }
         if (v.socialPatch && stateRef.current) {
           stateRef.current = applyNarratorPatch(stateRef.current, v.socialPatch);
           persistBeat({ statePatch: { state: stateRef.current } });
@@ -418,7 +483,10 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
           onopen: () => {},
           onmessage: (m: LiveServerMessage) => {
             const sc = m.serverContent;
-            if (sc?.interrupted) audio.flushPlayback();
+            if (sc?.interrupted) {
+              audio.flushPlayback();
+              audioGateRef.current.queue = [];
+            }
             const part = sc?.modelTurn?.parts?.find((p) => p.inlineData?.data);
             if (part?.inlineData?.data) {
               if (speechEndMarkRef.current) {
@@ -432,11 +500,24 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
                 });
                 speechEndMarkRef.current = 0;
               }
-              audio.playChunk(part.inlineData.data);
+              const gate = audioGateRef.current;
+              if (gate.active) {
+                // opening: hold voice until the first scene image is up
+                gate.queue.push(part.inlineData.data);
+              } else {
+                audio.playChunk(part.inlineData.data);
+              }
             }
             if (sc?.outputTranscription?.text) {
               captionRef.current += sc.outputTranscription.text;
-              setCaption(captionRef.current);
+              // throttle caption paints (~350ms) — the text still arrives
+              // well ahead of the voice, without per-chunk layout jitter
+              if (!captionTimerRef.current) {
+                captionTimerRef.current = setTimeout(() => {
+                  captionTimerRef.current = null;
+                  setCaption(captionRef.current);
+                }, 350);
+              }
             }
             if (sc?.inputTranscription?.text) {
               // player spoke: clear stale choices, mark for latency,
@@ -454,6 +535,17 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
             if (sc?.turnComplete) {
               const narration = captionRef.current.trim();
               captionRef.current = "";
+              if (captionTimerRef.current) {
+                clearTimeout(captionTimerRef.current);
+                captionTimerRef.current = null;
+              }
+              setCaption(narration); // final full text, stable
+              // reveal the buffered choices now that the narrator is done
+              if (pendingChoicesRef.current) {
+                setChoices(pendingChoicesRef.current);
+                pendingChoicesRef.current = null;
+              }
+              releaseAudioGate(); // safety: never gate past the first turn
               if (narration) {
                 persistBeat({
                   scene: { idx: Math.max(0, sceneIdxRef.current - 1), narration },
@@ -479,7 +571,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
       sessionRef.current = session;
       return session;
     },
-    [playthroughId, audio, handleToolCall, persistBeat, runDirectorPass],
+    [playthroughId, audio, handleToolCall, persistBeat, runDirectorPass, releaseAudioGate],
   );
   useEffect(() => {
     connectRef.current = connect;
@@ -496,6 +588,10 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
         void mixerRef.current.play("intro");
       }
       const resume = sceneIdxRef.current > 0;
+      // hold the narrator's voice until the first image is on screen —
+      // unless a saved scene image is already showing (resume)
+      audioGateRef.current = { active: !lastAssetIdRef.current, queue: [] };
+      setTimeout(releaseAudioGate, 9000); // failsafe: image slow ≠ silence forever
       const session = await connect(resume);
       await audio.startMic((chunk) => {
         sessionRef.current?.sendRealtimeInput({
@@ -511,8 +607,8 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
             parts: [
               {
                 text: resume
-                  ? "[SYSTEM] Resuming session. Recap in two atmospheric sentences, re-render the current scene, then continue."
-                  : "Begin the story.",
+                  ? "[SYSTEM] Resuming session. Recap where the story stands in two atmospheric sentences, call render_scene for the current moment, then continue from exactly where we left off."
+                  : "[SYSTEM] New story. Call render_scene for the establishing shot, then deliver your opening preface — the world, the stakes, who I am — and flow into the first scene.",
               },
             ],
           },
@@ -522,7 +618,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
       setErrorMsg(e instanceof Error ? e.message : String(e));
       setPhase("error");
     }
-  }, [connect, audio]);
+  }, [connect, audio, releaseAudioGate]);
 
   useEffect(
     () => () => {
@@ -548,6 +644,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
 
   const onChoose = useCallback(
     (option: string) => {
+      playSfx("tap");
       sendText(`I choose: ${option}`);
       // instant scene swap if this branch's image is already rendered
       const spec = speculativeRef.current.get(option);
@@ -566,6 +663,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
     (r: { result: "win" | "lose"; accuracy: number; timeMs: number }) => {
       const q = qte;
       setQte(null);
+      playSfx(r.result === "win" ? "win" : "lose");
       setMood(r.result === "win" ? "triumphant" : "tense");
       if (!q) return;
       respond(q.id, q.name, r, FunctionResponseScheduling.INTERRUPT);
@@ -580,6 +678,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
     (r: { result: "success" | "fail"; roll: number; secondRoll?: number; total: number }) => {
       const d = dice;
       setDice(null);
+      playSfx(r.result === "success" ? "win" : "lose");
       if (!d) return;
       respond(d.id, d.name, r, FunctionResponseScheduling.INTERRUPT);
       persistBeat({

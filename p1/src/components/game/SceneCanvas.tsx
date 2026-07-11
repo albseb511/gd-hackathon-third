@@ -122,30 +122,33 @@ export default function SceneCanvas({ imageUrl, caption, mood, generating }: Sce
         </div>
       )}
 
-      {/* lower-third subtitles */}
+      {/* lower-third subtitles — fixed-height, bottom-anchored so the newest
+          words are always visible and growing text never shifts the layout.
+          No key on the text node: it must update in place, not remount. */}
       {caption && (
-        <div className="absolute inset-x-0 bottom-0 flex justify-center px-5 pb-8 pt-24 pointer-events-none"
+        <div
+          className="absolute inset-x-0 bottom-0 flex justify-center px-5 pb-8 pt-24 pointer-events-none"
           style={{
             background:
               "linear-gradient(to top, rgba(6,5,4,0.82) 0%, rgba(6,5,4,0.5) 55%, transparent 100%)",
+            animation: "vn-rise-in 450ms ease-out both",
           }}
         >
-          <p
-            key={caption}
-            className="max-w-xl text-center text-[17px] leading-relaxed sm:text-lg"
-            style={{
-              fontFamily: "var(--vn-font-display)",
-              color: "var(--vn-paper)",
-              textShadow: "0 1px 8px rgba(0,0,0,0.9)",
-              display: "-webkit-box",
-              WebkitLineClamp: 3,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-              animation: "vn-rise-in 450ms ease-out both",
-            }}
+          <div
+            className="max-w-xl w-full flex flex-col justify-end overflow-hidden"
+            style={{ height: "6.8em" }}
           >
-            {caption}
-          </p>
+            <p
+              className="text-center text-[17px] leading-relaxed sm:text-lg"
+              style={{
+                fontFamily: "var(--vn-font-display)",
+                color: "var(--vn-paper)",
+                textShadow: "0 1px 8px rgba(0,0,0,0.9)",
+              }}
+            >
+              {caption}
+            </p>
+          </div>
         </div>
       )}
     </div>

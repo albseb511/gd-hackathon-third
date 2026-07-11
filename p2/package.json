@@ -10,7 +10,9 @@
     "db:push": "drizzle-kit push",
     "test:render": "tsx --env-file=.env.local scripts/test-render.ts",
     "test:isolation": "tsx scripts/test-isolation.ts",
-    "test:live-token": "tsx --env-file=.env.local scripts/test-live-token.ts"
+    "test:live-token": "tsx --env-file=.env.local scripts/test-live-token.ts",
+    "test:orchestrator": "tsx --env-file=.env.local scripts/test-orchestrator.ts",
+    "test:cost": "tsx scripts/test-cost.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.0",

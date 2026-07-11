@@ -4,6 +4,11 @@
 // deployed image pipeline, persists beats, then verifies what stuck.
 // Usage: BASE_URL=https://... npx tsx scripts/e2e-play.ts
 import { GoogleGenAI, LiveServerMessage, Session } from "@google/genai";
+import {
+  applyNarratorPatch,
+  parseNarratorPatch,
+} from "../src/lib/storyEngine/applyPatch";
+import { initialPlayState, PlayState } from "../src/lib/storyEngine/types";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3111";
 const MAX_BEATS = 3;
@@ -35,6 +40,7 @@ async function main() {
 
   let session: Session = null!;
   let sceneIdx = 0;
+  let playState: PlayState = initialPlayState("start");
   let images = 0;
   let transcript = "";
   let turnText = "";
@@ -85,10 +91,21 @@ async function main() {
               session.sendToolResponse({
                 functionResponses: [{ id: fc.id, name: fc.name, response: { ok: true } }],
               });
-              if (fc.name === "render_scene") void renderScene(args);
+              if (fc.name === "render_scene") {
+                if (typeof args.beat_id === "string") {
+                  playState = applyNarratorPatch(playState, {}, args.beat_id);
+                  void persist({ statePatch: { state: playState } });
+                }
+                void renderScene(args);
+              }
               if (fc.name === "present_choices") choicesSeen = (args.options as string[]) ?? [];
               if (fc.name === "update_state") {
-                void persist({ statePatch: {} }); // touch updatedAt like the client
+                playState = applyNarratorPatch(
+                  playState,
+                  parseNarratorPatch(args.patch),
+                  args.beat_id as string | undefined,
+                );
+                void persist({ statePatch: { state: playState } });
               }
               console.log(`  [tool] ${fc.name}`);
             }

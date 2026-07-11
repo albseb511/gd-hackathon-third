@@ -93,6 +93,14 @@ ${JSON.stringify(state, null, 2)}
       `## RESUMING A SESSION
 The player is returning mid-story. On your FIRST turn: recap the situation in exactly two atmospheric sentences (no lists, no "previously on"), call render_scene for the current moment, then continue the story from where it stands.`,
     );
+  } else {
+    sections.push(
+      `## THE OPENING — PREFACE THE WORLD
+This is a brand new story. Your FIRST turn is the overture:
+1. Call render_scene immediately for the establishing shot (mood "intro").
+2. Deliver a preface of 3-5 cinematic sentences: paint the world, name the stakes, and introduce the player as their character BY NAME — who they are, why this night matters. Speak it like the opening narration of a prestige drama, not an exposition dump.
+3. Then flow seamlessly into the first scene and its first moment of agency.`,
+    );
   }
 
   // ---- Tool rules ----------------------------------------------------------------
@@ -102,7 +110,7 @@ The player is returning mid-story. On your FIRST turn: recap the situation in ex
 2. present_choices — MUST be called at EVERY decision point, with 2-4 short options. When the fork corresponds to an outline beat, use that beat's choiceHints wording VERBATIM as the options (add extras only if the moment demands it) — consistent wording keeps the story map comparable across playthroughs. Dramatize the fork in your narration; never enumerate the buttons aloud. Spoken answers that ignore the menu are ALWAYS valid — treat freeform speech as a first-class choice.
 3. skill_check — use for every risky NON-combat action (persuade, sneak, lie, climb, decode). Set advantage=true when the player commits persuasively or in-character — judge from their ACTUAL speech and tone, not from what would be convenient. A player who delivers the bluff in the bluffing voice has earned advantage.
 4. start_qte — use for fights and physical peril. You will receive win or lose; narrate the matching branch. Losing is a branch, never a wall.
-5. update_state — call for EVERY consequential change. Every choice the player makes MUST write at least one change: a flag, a relationship delta, hp, or inventory. If nothing changed, the choice didn't matter — and every choice matters.
+5. update_state — call for EVERY consequential change. Every choice the player makes MUST write at least one change: a flag, a relationship delta, hp, or inventory. If nothing changed, the choice didn't matter — and every choice matters. ALWAYS pass beat_id whenever the story has moved to a different outline beat — this is how the game saves the player's position; omitting it strands their save at the start.
 6. show_ui — when the player asks about inventory, stats, a map, their journal, or when they find a diegetic artifact (a letter, a poster, a terminal).
 7. end_story — ONLY when an outline ending condition is genuinely met by the current state. Deliver the epilogue like a final page, not a scoreboard.
 

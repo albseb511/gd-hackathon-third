@@ -81,8 +81,10 @@ export async function simulateRun(opts: SimulateRunOpts): Promise<SimRunResult> 
   const choices: SimRunResult["choices"] = [];
   let endingId: string | null = null;
   let turns = 0;
-  // Latest unanswered present_choices of the current GM burst.
+  // Latest unanswered present_choices of the current GM burst. (Mutated inside
+  // processToolCalls; read via the getter so TS doesn't over-narrow to null.)
   let openChoice: { beatId: string; options: string[] } | null = null;
+  const currentChoice = () => openChoice;
 
   const timedGm = async (step: string, fn: () => Promise<GmStepResult>) => {
     const t0 = performance.now();
@@ -161,16 +163,17 @@ export async function simulateRun(opts: SimulateRunOpts): Promise<SimRunResult> 
     }
 
     // Player's move: answer the open choice menu, or speak freeform.
+    const open = currentChoice();
     const tp = performance.now();
     const action = await pickAction({
       persona,
       narration: result.narration,
-      options: openChoice?.options,
+      options: open?.options,
     });
     latencies.push({ step: "player_pick", ms: Math.round(performance.now() - tp) });
 
-    if (openChoice) {
-      choices.push({ beatId: openChoice.beatId, options: openChoice.options, picked: action });
+    if (open) {
+      choices.push({ beatId: open.beatId, options: open.options, picked: action });
       openChoice = null;
     }
     log(`  [${persona}] ${action}`);

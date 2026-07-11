@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { playthroughs, scenes, telemetry } from "@/db/schema";
+import { refreshSummary } from "@/lib/storyEngine/summarize";
 import type { PlayState } from "@/lib/storyEngine/types";
 
 const UUID_RE =
@@ -95,6 +96,12 @@ export async function POST(req: Request) {
         idx: scene.idx,
         ...provided,
       });
+    }
+
+    // Archivist checkpoint: re-compress history every 3 narrated beats.
+    // Fire-and-forget — never on the player's critical path.
+    if (scene.narration && scene.idx > 0 && scene.idx % 3 === 0) {
+      void refreshSummary(playthroughId).catch(() => {});
     }
   }
 

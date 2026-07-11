@@ -31,6 +31,7 @@ import {
 import {
   applyNarratorPatch,
   parseNarratorPatch,
+  NarratorPatch,
 } from "@/lib/storyEngine/applyPatch";
 
 type QteConfig = {
@@ -73,6 +74,13 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
   const speechEndMarkRef = useRef(0);
   const captionRef = useRef("");
   const connectRef = useRef<(resume: boolean) => Promise<Session>>(null!);
+  const lastScenePromptRef = useRef<string>("");
+  const turnFlagsRef = useRef({ hadRenderScene: false, hadChoices: false });
+  const lastPlayerTextRef = useRef("");
+  // speculative branch pre-generation: option → in-flight/settled image
+  const speculativeRef = useRef<Map<string, Promise<{ dataUrl: string; assetId: string | null } | null>>>(
+    new Map(),
+  );
 
   // render mirrors of ref-held game data
   const [data, setData] = useState<PlaythroughData | null>(null);
@@ -168,6 +176,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
         });
         if (!res.ok) throw new Error(`scene-image ${res.status}`);
         const { assetId, dataUrl } = await res.json();
+        lastScenePromptRef.current = String(args.image_prompt ?? "");
         setImageUrl(dataUrl);
         if (assetId) lastAssetIdRef.current = assetId;
         const idx = sceneIdxRef.current++;
@@ -195,13 +204,40 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
         const args = (fc.args ?? {}) as Record<string, unknown>;
         switch (fc.name) {
           case "render_scene":
+            turnFlagsRef.current.hadRenderScene = true;
             respond(fc.id, fc.name, { ok: true });
             void execRenderScene(args);
             break;
-          case "present_choices":
+          case "present_choices": {
+            turnFlagsRef.current.hadChoices = true;
             respond(fc.id, fc.name, { ok: true });
-            setChoices((args.options as string[]) ?? []);
+            const options = (args.options as string[]) ?? [];
+            setChoices(options);
+            // Speculative pre-generation: render every branch's likely next
+            // frame in parallel while the player is deciding. Decision time
+            // usually exceeds generation time, so the pick swaps in instantly.
+            speculativeRef.current = new Map();
+            const data = dataRef.current;
+            if (data && lastScenePromptRef.current) {
+              for (const option of options.slice(0, 4)) {
+                const p = fetch("/api/scene-image", {
+                  method: "POST",
+                  headers: { "content-type": "application/json" },
+                  body: JSON.stringify({
+                    prompt: `${lastScenePromptRef.current}. The moment after the player chooses: "${option}".`,
+                    artStyle: data.outline.artStyle,
+                    shot: lastAssetIdRef.current ? "edit" : "new",
+                    previousAssetId: lastAssetIdRef.current ?? undefined,
+                    playthroughId,
+                  }),
+                })
+                  .then((r) => (r.ok ? r.json() : null))
+                  .catch(() => null);
+                speculativeRef.current.set(option, p);
+              }
+            }
             break;
+          }
           case "start_qte":
             setQte({
               id: fc.id!,
@@ -255,7 +291,68 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
         }
       }
     },
-    [respond, execRenderScene, persistBeat],
+    [respond, execRenderScene, persistBeat, playthroughId],
+  );
+
+  // ---- Director: continuity guard + missed-tool fill + social read ----
+  const runDirectorPass = useCallback(
+    async (turnText: string) => {
+      const flags = { ...turnFlagsRef.current };
+      turnFlagsRef.current = { hadRenderScene: false, hadChoices: false };
+      if (!turnText || turnText.length < 40) return; // skip trivial turns
+      try {
+        const res = await fetch("/api/director", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            playthroughId,
+            turnText,
+            playerText: lastPlayerTextRef.current || undefined,
+            state: stateRef.current,
+            hadRenderScene: flags.hadRenderScene,
+            hadChoices: flags.hadChoices,
+          }),
+        });
+        if (!res.ok) return;
+        const v = (await res.json()) as {
+          continuityIssue: string | null;
+          missedScene: { imagePrompt: string; mood: string } | null;
+          missedChoices: string[] | null;
+          socialPatch: NarratorPatch | null;
+        };
+        if (v.continuityIssue) {
+          // steer the narrator in-fiction; state stays the source of truth
+          sessionRef.current?.sendClientContent({
+            turns: [
+              {
+                role: "user",
+                parts: [
+                  {
+                    text: `[CONTINUITY] ${v.continuityIssue} Correct course naturally in your next line without breaking character.`,
+                  },
+                ],
+              },
+            ],
+            turnComplete: false,
+          });
+        }
+        if (v.missedScene) {
+          void execRenderScene({
+            image_prompt: v.missedScene.imagePrompt,
+            mood: v.missedScene.mood,
+            shot: "new",
+          });
+        }
+        if (v.missedChoices) setChoices(v.missedChoices);
+        if (v.socialPatch && stateRef.current) {
+          stateRef.current = applyNarratorPatch(stateRef.current, v.socialPatch);
+          persistBeat({ statePatch: { state: stateRef.current } });
+        }
+      } catch {
+        // director is best-effort; the show goes on
+      }
+    },
+    [playthroughId, execRenderScene, persistBeat],
   );
 
   // ---- Live session ----
@@ -305,8 +402,11 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
               setCaption(captionRef.current);
             }
             if (sc?.inputTranscription?.text) {
-              // player spoke: clear stale choices, mark for latency
+              // player spoke: clear stale choices, mark for latency,
+              // accumulate for the director's social read
               speechEndMarkRef.current = performance.now();
+              lastPlayerTextRef.current =
+                (lastPlayerTextRef.current + " " + sc.inputTranscription.text).slice(-500);
               setChoices([]);
             }
             if (m.toolCall) handleToolCall(m);
@@ -321,6 +421,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
                 persistBeat({
                   scene: { idx: Math.max(0, sceneIdxRef.current - 1), narration },
                 });
+                void runDirectorPass(narration);
               }
             }
             if (m.goAway) {
@@ -341,7 +442,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
       sessionRef.current = session;
       return session;
     },
-    [playthroughId, audio, handleToolCall, persistBeat],
+    [playthroughId, audio, handleToolCall, persistBeat, runDirectorPass],
   );
   useEffect(() => {
     connectRef.current = connect;
@@ -392,6 +493,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
   // ---- player inputs ----
   const sendText = useCallback((text: string) => {
     speechEndMarkRef.current = performance.now();
+    lastPlayerTextRef.current = text;
     setChoices([]);
     sessionRef.current?.sendClientContent({
       turns: [{ role: "user", parts: [{ text }] }],
@@ -399,7 +501,18 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
   }, []);
 
   const onChoose = useCallback(
-    (option: string) => sendText(`I choose: ${option}`),
+    (option: string) => {
+      sendText(`I choose: ${option}`);
+      // instant scene swap if this branch's image is already rendered
+      const spec = speculativeRef.current.get(option);
+      speculativeRef.current = new Map();
+      void spec?.then((img) => {
+        if (img?.dataUrl) {
+          setImageUrl(img.dataUrl);
+          if (img.assetId) lastAssetIdRef.current = img.assetId;
+        }
+      });
+    },
     [sendText],
   );
 

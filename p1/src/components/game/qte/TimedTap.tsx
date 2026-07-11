@@ -106,37 +106,6 @@ export default function TimedTap({ difficulty, prompt, onDone }: TimedTapProps) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [round, phase]);
 
-  const settleRound = (hit: boolean, accuracy: number) => {
-    if (lockedRef.current || doneRef.current) return;
-    lockedRef.current = true;
-    setFeedback(hit ? "hit" : "miss");
-
-    const next = [...results, { hit, accuracy }];
-    setResults(next);
-    const hits = next.filter((r) => r.hit).length;
-    const misses = next.length - hits;
-
-    setTimeout(() => {
-      if (doneRef.current) return;
-      if (hits >= 2 || misses >= 2) {
-        finish(hits >= 2 ? "win" : "lose", next);
-      } else {
-        setFeedback(null);
-        setZoneCenter(randomZone(half));
-        lockedRef.current = false;
-        setRound((r) => r + 1);
-      }
-    }, FEEDBACK_MS);
-  };
-
-  const finish = (result: "win" | "lose", all: RoundOutcome[]) => {
-    doneRef.current = true;
-    setPhase(result);
-    const accuracy = all.length ? all.reduce((s, r) => s + r.accuracy, 0) / all.length : 0;
-    const timeMs = performance.now() - mountRef.current;
-    setTimeout(() => onDoneRef.current({ result, accuracy, timeMs }), 600);
-  };
-
   const handleTap = () => {
     if (lockedRef.current || doneRef.current) return;
     const off = Math.abs(posRef.current - zoneCenter);
@@ -147,7 +116,6 @@ export default function TimedTap({ difficulty, prompt, onDone }: TimedTapProps) 
   const over = phase !== "play";
   const win = phase === "win";
   const hits = results.filter((r) => r.hit).length;
-  const misses = results.length - hits;
 
   return (
     <div

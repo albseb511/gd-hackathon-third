@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import { MODELS } from "@/lib/models";
 import { buildLiveConnectConfig } from "@/lib/storyEngine/liveConfig";
+import { buildNarratorSystemPrompt } from "@/lib/storyEngine/systemPrompt";
+import { loadPlaythroughContext } from "@/lib/storyEngine/loadContext";
 
 const TEST_PROMPT = `You are the narrator of a live interactive noir story, speaking aloud.
 Open with two atmospheric sentences putting the listener in a rainy city at night, then ask what they do.
@@ -17,11 +19,28 @@ When a new scene begins, call render_scene first.`;
 export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as {
     model?: string;
-    systemInstruction?: string;
+    playthroughId?: string;
+    resume?: boolean;
     resumeHandle?: string;
     voiceName?: string;
   };
   const model = body.model ?? MODELS.live;
+
+  let systemInstruction = TEST_PROMPT;
+  if (body.playthroughId) {
+    const ctx = await loadPlaythroughContext(body.playthroughId);
+    if (!ctx) {
+      return NextResponse.json({ error: "playthrough not found" }, { status: 404 });
+    }
+    systemInstruction = buildNarratorSystemPrompt({
+      outline: ctx.outline,
+      characters: ctx.charactersSheets,
+      state: ctx.state,
+      summary: ctx.summary,
+      recentScenes: ctx.recentScenes,
+      resume: body.resume ?? ctx.sceneCount > 0,
+    });
+  }
 
   const client = new GoogleGenAI({
     apiKey: process.env.GEMINI_API_KEY,
@@ -37,7 +56,7 @@ export async function POST(req: NextRequest) {
         liveConnectConstraints: {
           model,
           config: buildLiveConnectConfig({
-            systemInstruction: body.systemInstruction ?? TEST_PROMPT,
+            systemInstruction,
             resumeHandle: body.resumeHandle,
             voiceName: body.voiceName,
           }),

@@ -1,0 +1,205 @@
+/* ============================================================
+   genui.css — generative UI layer (UI-Smith panels + artifacts).
+   Extends the candlelit-grimoire language from overlays.css.
+   GPU-friendly: transform/opacity only in keyframes.
+   ============================================================ */
+
+.gu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgba(8, 7, 5, 0.66);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  animation: vn-fade-in 200ms ease-out both;
+}
+
+/* ---- side sheet (desktop) / bottom sheet (mobile) ---- */
+
+.gu-panel {
+  position: fixed;
+  z-index: 71;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background:
+    linear-gradient(160deg, rgba(38, 30, 18, 0.55), transparent 40%),
+    linear-gradient(180deg, #171310 0%, #0d0b08 100%);
+  border: 1px solid rgba(217, 179, 108, 0.28);
+  box-shadow: -30px 0 80px -30px rgba(0, 0, 0, 0.9);
+}
+
+@media (min-width: 641px) {
+  .gu-panel {
+    top: 0;
+    right: 0;
+    height: 100dvh;
+    width: min(420px, 92vw);
+    border-right: none;
+    border-top: none;
+    border-bottom: none;
+    animation: gu-slide-left 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+
+@media (max-width: 640px) {
+  .gu-panel {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    max-height: 82dvh;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -30px 80px -30px rgba(0, 0, 0, 0.9);
+    animation: gu-slide-up 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+
+@keyframes gu-slide-left {
+  from { opacity: 0; transform: translate3d(48px, 0, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes gu-slide-up {
+  from { opacity: 0; transform: translate3d(0, 40px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+.gu-panel-body {
+  overflow-y: auto;
+  padding: 0 22px 26px;
+  scrollbar-width: thin;
+}
+
+/* staggered entrance for panel rows */
+.gu-row {
+  animation: vn-rise-in 420ms ease-out both;
+}
+
+/* ---- pips ---- */
+
+.gu-pip {
+  width: 22px;
+  height: 8px;
+  border-radius: 2px;
+  background: rgba(242, 232, 213, 0.1);
+  border: 1px solid rgba(242, 232, 213, 0.14);
+}
+
+.gu-pip.on {
+  background: linear-gradient(180deg, var(--vn-gold-bright), var(--vn-gold));
+  border-color: rgba(240, 208, 144, 0.7);
+  box-shadow: 0 0 8px rgba(217, 179, 108, 0.35);
+}
+
+/* ---- first-letter medallion glyph ---- */
+
+.gu-glyph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 999px;
+  font-size: 20px;
+  color: var(--vn-gold-bright);
+  background:
+    radial-gradient(circle at 32% 28%, rgba(240, 208, 144, 0.28), transparent 60%),
+    linear-gradient(180deg, #2a2114 0%, #171008 100%);
+  border: 1px solid rgba(217, 179, 108, 0.45);
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.6), 0 0 12px rgba(217, 179, 108, 0.12);
+  text-transform: uppercase;
+}
+
+/* ---- close button ---- */
+
+.gu-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  color: rgba(242, 232, 213, 0.75);
+  border: 1px solid rgba(242, 232, 213, 0.2);
+  background: rgba(11, 10, 8, 0.6);
+  cursor: pointer;
+  transition: color 200ms ease, border-color 200ms ease, transform 200ms ease;
+}
+
+.gu-close:hover {
+  color: var(--vn-gold-bright);
+  border-color: rgba(217, 179, 108, 0.55);
+  transform: scale(1.06);
+}
+
+/* ---- map route ---- */
+
+.gu-map-node {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  border-radius: 999px;
+  border: 1.5px solid rgba(242, 232, 213, 0.35);
+  background: transparent;
+}
+
+.gu-map-node.visited {
+  background: var(--vn-gold);
+  border-color: var(--vn-gold);
+}
+
+.gu-map-node.current {
+  background: var(--vn-gold-bright);
+  border-color: var(--vn-gold-bright);
+  box-shadow: 0 0 14px rgba(240, 208, 144, 0.8);
+  animation: vn-pulse 1.6s ease-in-out infinite;
+}
+
+/* ---- artifact overlay ---- */
+
+.gu-artifact-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 72;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(12px, 4vw, 40px);
+}
+
+.gu-artifact {
+  position: relative;
+  width: min(720px, 100%);
+  height: min(84dvh, 900px);
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid rgba(217, 179, 108, 0.3);
+  box-shadow:
+    0 40px 120px -20px rgba(0, 0, 0, 0.95),
+    0 0 60px -10px rgba(217, 179, 108, 0.12);
+  animation: gu-paper-drop 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  background: #0b0a08;
+}
+
+@keyframes gu-paper-drop {
+  0% { opacity: 0; transform: translate3d(0, -46px, 0) rotate(-1.6deg) scale(1.03); }
+  60% { opacity: 1; transform: translate3d(0, 6px, 0) rotate(0.4deg) scale(1); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }
+}
+
+.gu-artifact iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+  background: #0b0a08;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gu-panel, .gu-artifact, .gu-row, .gu-backdrop { animation: none; }
+  .gu-map-node.current { animation: none; }
+}

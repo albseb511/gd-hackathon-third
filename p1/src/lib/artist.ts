@@ -26,7 +26,9 @@ export interface GenerateImageOptions {
   timeoutMs?: number;
 }
 
-const DEFAULT_TIMEOUT_MS = 8_000;
+// Edit shots have been measured at up to ~8s; the stage hides waits with
+// Ken Burns, so prefer a late image over a missing one.
+const DEFAULT_TIMEOUT_MS = 12_000;
 
 function buildParts(
   opts: GenerateImageOptions,
@@ -97,6 +99,7 @@ async function attempt(
       contents: [{ role: "user", parts: buildParts(opts, includeReferences) }],
       config: {
         responseModalities: ["IMAGE"],
+        imageConfig: { aspectRatio: "16:9", imageSize: "1K" },
         abortSignal: controller.signal,
       },
     });

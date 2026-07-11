@@ -1,0 +1,19 @@
+"use client";
+
+// Client-only mount: R3F cannot server-render, so load the Canvas with ssr:false.
+import dynamic from "next/dynamic";
+import { emptyRoom } from "@/scene/defaults";
+
+const Viewport = dynamic(() => import("./Viewport"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full w-full items-center justify-center text-zinc-400">
+      Loading 3D room…
+    </div>
+  ),
+});
+
+export default function ViewportMount() {
+  const design = emptyRoom();
+  return <Viewport design={design} />;
+}

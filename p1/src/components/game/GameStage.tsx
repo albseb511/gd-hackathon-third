@@ -1175,7 +1175,8 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
           <img
             src={`/api/assets/${titleCardId}`}
             alt=""
-            className="absolute inset-0 h-full w-full object-cover opacity-35"
+            // decorative backdrop only — must never intercept clicks
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-35"
             draggable={false}
           />
         )}

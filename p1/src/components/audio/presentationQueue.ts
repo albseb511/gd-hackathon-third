@@ -40,7 +40,20 @@ type TtsStreamSegment = {
   line: string;
   feeds: SentenceFeed[];
 };
-type Segment = LiveSegment | TtsSegment | VisualSegment | TtsStreamSegment;
+// A pre-rendered clip (scripted playback): decoded mp3 buffer, played in order
+// with a single speaker enter/exit — same UX as a live character line.
+type ClipSegment = {
+  kind: "clip";
+  speaker: string;
+  line: string;
+  buffer: Promise<AudioBuffer | null>;
+};
+type Segment =
+  | LiveSegment
+  | TtsSegment
+  | VisualSegment
+  | TtsStreamSegment
+  | ClipSegment;
 
 export interface SpeakerInfo {
   speaker: string; // "narrator" or a character name
@@ -105,6 +118,27 @@ export class PresentationQueue {
     const tail = this.segments[this.segments.length - 1];
     if (tail?.kind === "live") tail.closed = true;
     this.segments.push({ kind: "tts-stream", speaker, line, feeds });
+    this.poke();
+  }
+
+  /** Decode a pre-rendered audio file to a buffer using our own context. */
+  async decodeUrl(url: string): Promise<AudioBuffer | null> {
+    try {
+      const ctx = this.ensureCtx();
+      const ab = await fetch(url, { cache: "force-cache" }).then((r) =>
+        r.ok ? r.arrayBuffer() : Promise.reject(),
+      );
+      return await ctx.decodeAudioData(ab);
+    } catch {
+      return null;
+    }
+  }
+
+  /** A pre-rendered line (scripted): plays back-to-back like a character line. */
+  pushClip(speaker: string, line: string, buffer: Promise<AudioBuffer | null>) {
+    const tail = this.segments[this.segments.length - 1];
+    if (tail?.kind === "live") tail.closed = true;
+    this.segments.push({ kind: "clip", speaker, line, buffer });
     this.poke();
   }
 
@@ -179,6 +213,11 @@ export class PresentationQueue {
     for (let i = 0; i < samples.length; i++) floats[i] = samples[i] / 0x8000;
     const buf = ctx.createBuffer(1, Math.max(1, floats.length), 24000);
     buf.copyToChannel(floats, 0);
+    return this.scheduleBuffer(buf);
+  }
+
+  private scheduleBuffer(buf: AudioBuffer): number {
+    const ctx = this.ensureCtx();
     const src = ctx.createBufferSource();
     src.buffer = buf;
     src.connect(ctx.destination);
@@ -311,6 +350,31 @@ export class PresentationQueue {
           continue;
         }
 
+        if (seg.kind === "clip") {
+          // pre-rendered line: wait for prior audio, decode already in flight
+          await this.waitUntilCursor(epoch);
+          if (this.epoch !== epoch) break;
+          const buf = await Promise.race([
+            seg.buffer,
+            new Promise<null>((r) => setTimeout(() => r(null), TTS_WAIT_MS)),
+          ]);
+          if (this.epoch !== epoch) break;
+          this.onSpeaker({ speaker: seg.speaker, line: seg.line });
+          this.onClipResult(!!buf, seg.speaker);
+          if (buf) {
+            this.scheduleBuffer(buf);
+            await this.waitUntilCursor(epoch);
+          } else {
+            await new Promise((r) =>
+              setTimeout(r, Math.min(3500, 900 + seg.line.length * 45)),
+            );
+          }
+          if (this.epoch !== epoch) break;
+          this.onSpeaker(null);
+          this.segments.shift();
+          continue;
+        }
+
         // TTS segment: let prior audio finish, then play the clip
         await this.waitUntilCursor(epoch);
         if (this.epoch !== epoch) break;
@@ -341,6 +405,7 @@ export class PresentationQueue {
           (s) =>
             s.kind === "tts" ||
             s.kind === "tts-stream" ||
+            s.kind === "clip" ||
             s.kind === "visual" ||
             (s.kind === "live" && s.scheduled < s.chunks.length),
         )

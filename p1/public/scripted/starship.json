@@ -1,0 +1,734 @@
+{
+  "storyId": "starship",
+  "title": "Starship",
+  "startBeat": "a1_bridge",
+  "beats": {
+    "a1_bridge": {
+      "mood": "tense",
+      "lines": [
+        {
+          "speaker": "narrator",
+          "text": "Red emergency lights bathe the cramped bridge in blood-colored shadows as sparks shower from an open console. You stand caught between two officers, the ship's failing systems humming a dying tune around you.",
+          "audio": "/scripted/starship/a1_bridge-0.mp3"
+        },
+        {
+          "speaker": "Security Officer Marcus Kane",
+          "text": "hmmm. This deck is compromised, and we lock it down right now before whatever is out there gets inside.",
+          "audio": "/scripted/starship/a1_bridge-1.mp3"
+        },
+        {
+          "speaker": "Chief Engineer Valeria Vance",
+          "text": "If we seal those bulkheads, the life support grid on deck four dies in under two minutes,...yeah? We need to route the emergency batteries there now.",
+          "audio": "/scripted/starship/a1_bridge-2.mp3"
+        },
+        {
+          "speaker": "Dr. Aris Thorne",
+          "text": "tsk. The life support failure will asphyxiate the wounded in the holding bay within moments, Vance is statistically correct!",
+          "audio": "/scripted/starship/a1_bridge-3.mp3"
+        },
+        {
+          "speaker": "narrator",
+          "text": "Kane's hand hovers over the lockdown manual override, while Vance reaches for the power reroute cables. The terminal screen blinks, awaiting your final command.",
+          "audio": "/scripted/starship/a1_bridge-4.mp3"
+        }
+      ],
+      "choices": [
+        {
+          "label": "Lock down the ship with Kane",
+          "next": "a1_reactor"
+        },
+        {
+          "label": "Route emergency power to life support",
+          "next": "a1_quarters"
+        }
+      ]
+    },
+    "a1_reactor": {
+      "mood": "combat",
+      "lines": [
+        {
+          "speaker": "narrator",
+          "text": "Green, glowing plasma coolant hisses violently from the fractured pipe overhead, filling the narrow steel walkway with a suffocating, toxic fog.",
+          "audio": "/scripted/starship/a1_reactor-0.mp3"
+        },
+        {
+          "speaker": "Chief Engineer Valeria Vance",
+          "text": "The main seal is breached, and this whole deck's gonna be a radioactive graveyard in ninety seconds... yeah?",
+          "audio": "/scripted/starship/a1_reactor-1.mp3"
+        },
+        {
+          "speaker": "Security Officer Marcus Kane",
+          "text": "hmmm My squad's containment suits are already melting out here, Vance. Get those bypass protocols online immediately.",
+          "audio": "/scripted/starship/a1_reactor-2.mp3"
+        },
+        {
+          "speaker": "Dr. Aris Thorne",
+          "text": "tsk The airborne toxicity levels are already spiking past lethal human thresholds—we must act now!",
+          "audio": "/scripted/starship/a1_reactor-3.mp3"
+        },
+        {
+          "speaker": "narrator",
+          "text": "The terminal before you blares a crimson warning as the air grows thick and searing in your lungs; you must act now to stop the deadly leak.",
+          "audio": "/scripted/starship/a1_reactor-4.mp3"
+        }
+      ],
+      "choices": [
+        {
+          "label": "Manually seal the emergency pressure valve",
+          "next": "a1_quarters"
+        },
+        {
+          "label": "Siphon toxic gas into auxiliary batteries",
+          "next": "a1_sabotage_revealed"
+        }
+      ]
+    },
+    "a1_quarters": {
+      "mood": "tense",
+      "lines": [
+        {
+          "speaker": "narrator",
+          "text": "The swinging desk lamp illuminates scattered smuggling logs at your feet, just as a metallic screech echoes from the ceiling grate above.",
+          "audio": "/scripted/starship/a1_quarters-0.mp3"
+        },
+        {
+          "speaker": "Valeria Vance",
+          "text": "Smuggling hyper-fuel right under our bloody noses, and now this... yeah?",
+          "audio": "/scripted/starship/a1_quarters-1.mp3"
+        },
+        {
+          "speaker": "Security Officer Marcus Kane",
+          "text": "hmmm Step down from the ventilation shaft immediately, Doctor, before I clear this room.",
+          "audio": "/scripted/starship/a1_quarters-2.mp3"
+        },
+        {
+          "speaker": "Dr. Aris Thorne",
+          "text": "tsk I-I had to do it, he was going to... to purge the entire lower deck, you must believe me!",
+          "audio": "/scripted/starship/a1_quarters-3.mp3"
+        },
+        {
+          "speaker": "narrator",
+          "text": "The swinging light glints off the fresh, wet blood coating the scalpel in Thorne's trembling hand as he stares down at you.",
+          "audio": "/scripted/starship/a1_quarters-4.mp3"
+        }
+      ],
+      "choices": [
+        {
+          "label": "Disarm Dr. Thorne by force",
+          "next": "a1_sabotage_revealed"
+        },
+        {
+          "label": "Offer protection to Dr. Thorne",
+          "next": "a1_interrogation"
+        }
+      ]
+    },
+    "a1_sabotage_revealed": {
+      "mood": "tense",
+      "lines": [
+        {
+          "speaker": "narrator",
+          "text": "You squeeze into the cramped maintenance conduit, where the captain's severed tracking collar pulses with an ominous yellow light, crude wires spliced directly into the life support.",
+          "audio": "/scripted/starship/a1_sabotage_revealed-0.mp3"
+        },
+        {
+          "speaker": "Chief Engineer Valeria Vance",
+          "text": "That bastard's rigged the tracking collar to dump our entire O2 reserve straight into the void if we pull it wrong, ...yeah?",
+          "audio": "/scripted/starship/a1_sabotage_revealed-1.mp3"
+        },
+        {
+          "speaker": "Dr. Aris Thorne",
+          "text": "Tsk. The primary oxygen levels are already declining in this sector, meaning we have precisely ninety seconds before irreversible cellular hypoxia begins.",
+          "audio": "/scripted/starship/a1_sabotage_revealed-2.mp3"
+        },
+        {
+          "speaker": "Security Officer Marcus Kane",
+          "text": "Hmmm. I don't like the look of those pressure-sensitive triggers, and we do not have time to sit here debating it.",
+          "audio": "/scripted/starship/a1_sabotage_revealed-3.mp3"
+        },
+        {
+          "speaker": "narrator",
+          "text": "The yellow beacon flashes faster, casting frantic shadows over the tangled mass of wires as the life support system begins to hiss.",
+          "audio": "/scripted/starship/a1_sabotage_revealed-4.mp3"
+        }
+      ],
+      "choices": [
+        {
+          "label": "Cut the main oxygen wires",
+          "next": "a2_confrontation"
+        },
+        {
+          "label": "Bypass the bomb circuitry manually",
+          "next": "a2_confrontation"
+        }
+      ]
+    },
+    "a1_interrogation": {
+      "mood": "tense",
+      "lines": [
+        {
+          "speaker": "narrator",
+          "text": "The interrogation room is freezing, smelling of ozone and raw fear. You watch from the shadows as Kane paces around the bound doctor, a dangerous hum rising from his heavy shock baton.",
+          "audio": "/scripted/starship/a1_interrogation-0.mp3"
+        },
+        {
+          "speaker": "Security Officer Marcus Kane",
+          "text": "hmmm. We don't have time for your deflections, Doctor. Tell me how you disabled the life support grid, or this baton will do the talking.",
+          "audio": "/scripted/starship/a1_interrogation-1.mp3"
+        },
+        {
+          "speaker": "Dr. Aris Thorne",
+          "text": "tsk. I am a physician, you brute, not some back-alley saboteur, and I demand you release these restraints immediately!",
+          "audio": "/scripted/starship/a1_interrogation-2.mp3"
+        },
+        {
+          "speaker": "Chief Engineer Valeria Vance",
+          "text": "The clock's ticking down to total system collapse, Doc, so acting high and mighty isn't going to save your skin, ...yeah?",
+          "audio": "/scripted/starship/a1_interrogation-3.mp3"
+        },
+        {
+          "speaker": "Security Officer Marcus Kane",
+          "text": "hmmm. Enough. Let's see how long your fancy credentials protect you from five thousand volts.",
+          "audio": "/scripted/starship/a1_interrogation-4.mp3"
+        },
+        {
+          "speaker": "narrator",
+          "text": "Kane steps forward, the sparking baton inches from Thorne's trembling chest. You must decide whether to let Kane extract the confession by force, or step in physically to protect the doctor.",
+          "audio": "/scripted/starship/a1_interrogation-5.mp3"
+        }
+      ],
+      "choices": [
+        {
+          "label": "Allow Kane to interrogate Thorne",
+          "next": "a2_confrontation"
+        },
+        {
+          "label": "Intervene physically to protect Thorne",
+          "next": "a2_confinement"
+        }
+      ]
+    },
+    "a2_confrontation": {
+      "mood": "tense",
+      "lines": [
+        {
+          "speaker": "narrator",
+          "text": "The air in the central corridor is thick with static as Valeria Vance levels a heavy hydraulic wrench at Marcus Kane’s chest, her knuckles white while his hand hovers over his holstered sidearm.",
+          "audio": "/scripted/starship/a2_confrontation-0.mp3"
+        },
+        {
+          "speaker": "Chief Engineer Valeria Vance",
+          "text": "I found the master keycard hidden right inside your tactical vest, Kane—the exact one used to override the life support grid... yeah?",
+          "audio": "/scripted/starship/a2_confrontation-1.mp3"
+        },
+        {
+          "speaker": "Security Officer Marcus Kane",
+          "text": "hmmm... Someone planted that card to frame me, Vance, and drawing a weapon on a security officer is a class-one offense.",
+          "audio": "/scripted/starship/a2_confrontation-2.mp3"
+        },
+        {
+          "speaker": "Dr. Aris Thorne",
+          "text": "tsk! Please, the structural integrity of this entire deck is compromised, and any gunfire will surely breach the hull!",
+          "audio": "/scripted/starship/a2_confrontation-3.mp3"
+        },
+        {
+          "speaker": "narrator",
+          "text": "Dr. Thorne clutches the corridor wall in terror as Vance tightens her grip on the wrench and Kane's fingers twitch near his trigger, both of them waiting for you to intervene.",
+          "audio": "/scripted/starship/a2_confrontation-4.mp3"
+        }
+      ],
+      "choices": [
+        {
+          "label": "Demand Kane hand over the keycard",
+          "next": "a2_reactor_fire"
+        },
+        {
+          "label": "Order Vance to stand down",
+          "next": "a2_stealth_hunt"
+        }
+      ]
+    },
+    "a2_reactor_fire": {
+      "mood": "combat",
+      "lines": [
+        {
+          "speaker": "narrator",
+          "text": "A deafening roar tears through the primary conduit, sending a torrent of superheated orange fire and twisted metal shrapnel hurtling straight down the narrow corridor toward you.",
+          "audio": "/scripted/starship/a2_reactor_fire-0.mp3"
+        },
+        {
+          "speaker": "Chief Engineer Valeria Vance",
+          "text": "Bloody hell, the main feed blew—get back, she's gonna cook the whole deck, yeah?",
+          "audio": "/scripted/starship/a2_reactor_fire-1.mp3"
+        },
+        {
+          "speaker": "Security Officer Marcus Kane",
+          "text": "hmmm Vance, fall back immediately, that thermal wave is heading straight for the primary oxygen reserve.",
+          "audio": "/scripted/starship/a2_reactor_fire-2.mp3"
+        },
+        {
+          "speaker": "Dr. Aris Thorne",
+          "text": "tsk The temperature spike is completely off the scale, we must isolate the sector before the tanks blow!",
+          "audio": "/scripted/starship/a2_reactor_fire-3.mp3"
+        },
+        {
+          "speaker": "Chief Engineer Valeria Vance",
+          "text": "I can't reach the manual release—the blast shield is the only thing between me and the fire, yeah?",
+          "audio": "/scripted/starship/a2_reactor_fire-4.mp3"
+        },
+        {
+          "speaker": "narrator",
+          "text": "The roaring wall of fire is seconds away from incinerating both the chief engineer and the ship's vital oxygen tanks, and your hands are on the manual override controls.",
+          "audio": "/scripted/starship/a2_reactor_fire-5.mp3"
+        }
+      ],
+      "choices": [
+        {
+          "label": "Lock the blast doors to save tanks",
+          "next": "a2_life_support_lab"
+        },
+        {
+          "label": "Pull Vance to safety behind shield",
+          "next": "a2_damaged_hab"
+        }
+      ],
+      "qte": {
+        "type": "sequence",
+        "difficulty": 3,
+        "prompt": "Winning saves Vance and protects the oxygen tanks, while failing injures the crew and forces a retreat to the damaged modules.",
+        "winNext": "a2_life_support_lab",
+        "loseNext": "a2_damaged_hab"
+      }
+    },
+    "a2_stealth_hunt": {
+      "mood": "tense",
+      "lines": [
+        {
+          "speaker": "narrator",
+          "text": "You press your back against the cold, damp pipes of the maintenance shaft as the harsh blue sweep of a security drone's searchlight cuts through the floor grate.",
+          "audio": "/scripted/starship/a2_stealth_hunt-0.mp3"
+        },
+        {
+          "speaker": "Dr. Aris Thorne",
+          "text": "tsk... If that scanner registers our thermal signatures, we are quite thoroughly, catastrophically vivisected by the automated turrets before we even reach auxiliary control.",
+          "audio": "/scripted/starship/a2_stealth_hunt-1.mp3"
+        },
+        {
+          "speaker": "Chief Engineer Valeria Vance",
+          "text": "Keep your shirt on, doc. I can mask our signatures, but we'll have to time our scramble perfectly between the light sweeps... yeah?",
+          "audio": "/scripted/starship/a2_stealth_hunt-2.mp3"
+        },
+        {
+          "speaker": "Security Officer Marcus Kane",
+          "text": "hmmm... Central, we have a minor pressure drop in the Sector Four maintenance lines. Cycle the drone scanners to active thermal sweep immediately.",
+          "audio": "/scripted/starship/a2_stealth_hunt-3.mp3"
+        },
+        {
+          "speaker": "narrator",
+          "text": "The drone hovers directly over your metal grate, its searchlight locking into place. You must act immediately—either slip past the physical patrol sweeps, or attempt to spoof Kane's security credentials to bypass the network entirely.",
+          "audio": "/scripted/starship/a2_stealth_hunt-4.mp3"
+        }
+      ],
+      "choices": [
+        {
+          "label": "Sneak past the patrol drones",
+          "next": "a2_life_support_lab"
+        },
+        {
+          "label": "Spoof Kane's credentials to security",
+          "next": "a2_confinement"
+        }
+      ]
+    },
+    "a2_life_support_lab": {
+      "mood": "tense",
+      "lines": [
+        {
+          "speaker": "narrator",
+          "text": "Thick white smoke billows through the artificial sun-glare of the bio-dome, choking the lush green canopy as another canister hisses into the incinerator.",
+          "audio": "/scripted/starship/a2_life_support_lab-0.mp3"
+        },
+        {
+          "speaker": "Dr. Aris Thorne",
+          "text": "tsk It is the only way to sanitize the ship, to purge the pathogen before we all rot from the inside out!",
+          "audio": "/scripted/starship/a2_life_support_lab-1.mp3"
+        },
+        {
+          "speaker": "Chief Engineer Valeria Vance",
+          "text": "Doc, you're venting the last of our breathable reserves into the furnace, and we're not dying of some ghost virus today, ...yeah?",
+          "audio": "/scripted/starship/a2_life_support_lab-2.mp3"
+        },
+        {
+          "speaker": "Security Officer Marcus Kane",
+          "text": "hmmm Stand down, Doctor, or I will neutralize the threat myself. Step away from the incinerator controls immediately.",
+          "audio": "/scripted/starship/a2_life_support_lab-3.mp3"
+        },
+        {
+          "speaker": "narrator",
+          "text": "Thorne raises another heavy oxygen cylinder over the burning recycling chute, his finger hovering on the release valve. You must act now before the ship's air supply is lost forever.",
+          "audio": "/scripted/starship/a2_life_support_lab-4.mp3"
+        }
+      ],
+      "choices": [
+        {
+          "label": "Shoot Thorne to save remaining canisters",
+          "next": "a3_climax_start"
+        },
+        {
+          "label": "Convince Thorne to stop destroying canisters",
+          "next": "a3_climax_start"
+        }
+      ]
+    },
+    "a2_damaged_hab": {
+      "mood": "tense",
+      "lines": [
+        {
+          "speaker": "narrator",
+          "text": "The metal groans as a violent decompression wind tears through the deck, dragging screaming colonists toward the widening tear in the hull.",
+          "audio": "/scripted/starship/a2_damaged_hab-0.mp3"
+        },
+        {
+          "speaker": "Dr. Aris Thorne",
+          "text": "tsk We are losing atmospheric pressure by the second, and the triage patients are being pulled right toward the void!",
+          "audio": "/scripted/starship/a2_damaged_hab-1.mp3"
+        },
+        {
+          "speaker": "Chief Engineer Valeria Vance",
+          "text": "I can dump our raw engine fuel directly into the auxiliary shields to plug that breach, but we'll be dead in the water, yeah?",
+          "audio": "/scripted/starship/a2_damaged_hab-2.mp3"
+        },
+        {
+          "speaker": "Security Officer Marcus Kane",
+          "text": "hmmm Negative, Engineer. Standard protocol dictates we seal the bulkheads immediately, even if it locks those civilians in the venting sector.",
+          "audio": "/scripted/starship/a2_damaged_hab-3.mp3"
+        },
+        {
+          "speaker": "narrator",
+          "text": "As the structural beams snap and the air grows thin, your hand hovers over the manual override console.",
+          "audio": "/scripted/starship/a2_damaged_hab-4.mp3"
+        }
+      ],
+      "choices": [
+        {
+          "label": "Seal the airlock on the colonists",
+          "next": "a3_climax_start"
+        },
+        {
+          "label": "Vent engine fuel to power shields",
+          "next": "a2_confinement"
+        }
+      ]
+    },
+    "a2_confinement": {
+      "mood": "tense",
+      "lines": [
+        {
+          "speaker": "narrator",
+          "text": "Frost creeps across the reinforced glass of the holding cell, and each breath you draw feels like swallowing needles as the oxygen levels plummet.",
+          "audio": "/scripted/starship/a2_confinement-0.mp3"
+        },
+        {
+          "speaker": "Dr. Aris Thorne",
+          "text": "tsk My calculations show we have less than two minutes before hypoxia sets in, and my fingers are already losing all sensation!",
+          "audio": "/scripted/starship/a2_confinement-1.mp3"
+        },
+        {
+          "speaker": "Chief Engineer Valeria Vance",
+          "text": "We can't wait for a miracle, so we either blow this door's primary circuit with that metal scrap, or we get Kane to listen to reason, yeah?",
+          "audio": "/scripted/starship/a2_confinement-2.mp3"
+        },
+        {
+          "speaker": "Security Officer Marcus Kane",
+          "text": "hmmm Step away from the terminal immediately, prisoners; compliance is your only authorized course of action.",
+          "audio": "/scripted/starship/a2_confinement-3.mp3"
+        },
+        {
+          "speaker": "narrator",
+          "text": "Your lungs scream for air as the console sparks in front of you, and Kane's hand hovers near his sidearm on the other side of the freezing glass.",
+          "audio": "/scripted/starship/a2_confinement-4.mp3"
+        }
+      ],
+      "choices": [
+        {
+          "label": "Short-circuit the fuse box with metal",
+          "next": "a3_climax_start"
+        },
+        {
+          "label": "Plead with the guard via intercom",
+          "next": "a3_climax_start"
+        }
+      ]
+    },
+    "a3_climax_start": {
+      "mood": "combat",
+      "lines": [
+        {
+          "speaker": "narrator",
+          "text": "Red emergency lights bathe the central terminal hub as the countdown clock ticks relentlessly down to four minutes, fifteen seconds, with Security Officer Marcus Kane blocking your only exit.",
+          "audio": "/scripted/starship/a3_climax_start-0.mp3"
+        },
+        {
+          "speaker": "Security Officer Marcus Kane",
+          "text": "hmmm. You don't get it, do you? This rig was scheduled for decommissioning by Aegis Corp before we even left port, and I'm just here to collect the payout.",
+          "audio": "/scripted/starship/a3_climax_start-1.mp3"
+        },
+        {
+          "speaker": "Dr. Aris Thorne",
+          "text": "tsk. Arrogant, absolute madness, Kane! You are risking the lives of every single soul on this vessel for mere corporate pennies!",
+          "audio": "/scripted/starship/a3_climax_start-2.mp3"
+        },
+        {
+          "speaker": "Chief Engineer Valeria Vance",
+          "text": "He doesn't give a damn about the crew, Aris. He's just waiting for that bypass key to melt into slag with the rest of us, ...yeah?",
+          "audio": "/scripted/starship/a3_climax_start-3.mp3"
+        },
+        {
+          "speaker": "Security Officer Marcus Kane",
+          "text": "hmmm. Keep back, Vance. One more step and I'll paint these bulkheads with your brains before the reactor blow does it for me.",
+          "audio": "/scripted/starship/a3_climax_start-4.mp3"
+        },
+        {
+          "speaker": "narrator",
+          "text": "Kane holds the physical bypass key tight against his chest, his finger tightening on the heavy revolver's trigger as the countdown ticks down. You must make your move now.",
+          "audio": "/scripted/starship/a3_climax_start-5.mp3"
+        }
+      ],
+      "choices": [
+        {
+          "label": "Charge Kane to steal the key",
+          "next": "a3_repair_attempt"
+        },
+        {
+          "label": "Distract Kane by arguing with him",
+          "next": "a3_showdown"
+        }
+      ]
+    },
+    "a3_showdown": {
+      "mood": "combat",
+      "lines": [
+        {
+          "speaker": "narrator",
+          "text": "Sparks rain down from severed overhead conduits as you grapple with Kane on the vibrating catwalk, the blistering heat of the blue plasma vortex roaring directly beneath you.",
+          "audio": "/scripted/starship/a3_showdown-0.mp3"
+        },
+        {
+          "speaker": "Security Officer Marcus Kane",
+          "text": "hmmm Stand down. The transmission must be stopped, and this ship has to burn.",
+          "audio": "/scripted/starship/a3_showdown-1.mp3"
+        },
+        {
+          "speaker": "Chief Engineer Valeria Vance",
+          "text": "Don't let him throw that override key, or we are all space dust, yeah?",
+          "audio": "/scripted/starship/a3_showdown-2.mp3"
+        },
+        {
+          "speaker": "Dr. Aris Thorne",
+          "text": "tsk Kane, please! The thermal shielding is failing, we must evacuate immediately!",
+          "audio": "/scripted/starship/a3_showdown-3.mp3"
+        },
+        {
+          "speaker": "Security Officer Marcus Kane",
+          "text": "hmmm No one is escaping this sector.",
+          "audio": "/scripted/starship/a3_showdown-4.mp3"
+        },
+        {
+          "speaker": "narrator",
+          "text": "Kane's hand extends over the edge, his fingers loosening around the heavy brass key directly above the churning blue abyss.",
+          "audio": "/scripted/starship/a3_showdown-5.mp3"
+        }
+      ],
+      "choices": [
+        {
+          "label": "Strike Kane with an iron pipe",
+          "next": "a3_bridge_control"
+        },
+        {
+          "label": "Tackle Kane over the reactor railing",
+          "next": "a3_airlock_struggle"
+        }
+      ],
+      "qte": {
+        "type": "mash",
+        "difficulty": 3,
+        "prompt": "Winning secures the override key to save the ship, while failing plunges you into a struggle for survival as the hull collapses.",
+        "winNext": "a3_bridge_control",
+        "loseNext": "a3_airlock_struggle"
+      }
+    },
+    "a3_repair_attempt": {
+      "mood": "tense",
+      "lines": [
+        {
+          "speaker": "narrator",
+          "text": "You cling to the freezing, black curve of the starship's outer hull, your vision blurring as a steady hiss of air escapes the tear in your suit.",
+          "audio": "/scripted/starship/a3_repair_attempt-0.mp3"
+        },
+        {
+          "speaker": "Dr. Aris Thorne",
+          "text": "tsk... Your vitals are dropping rapidly. That suit leak will asphyxiate you in less than two minutes!",
+          "audio": "/scripted/starship/a3_repair_attempt-1.mp3"
+        },
+        {
+          "speaker": "Chief Engineer Valeria Vance",
+          "text": "Ignore the panic merchant and focus on the primary bypass, or we are all dead out here anyway, ...yeah?",
+          "audio": "/scripted/starship/a3_repair_attempt-2.mp3"
+        },
+        {
+          "speaker": "Security Officer Marcus Kane",
+          "text": "hmmm... Step away from those fuel cells immediately, or I will lock down the local manifold.",
+          "audio": "/scripted/starship/a3_repair_attempt-3.mp3"
+        },
+        {
+          "speaker": "narrator",
+          "text": "Frost creeps across your visor as your numb fingers hover over the critical bypass junction. You must act now before the cold claims you.",
+          "audio": "/scripted/starship/a3_repair_attempt-4.mp3"
+        }
+      ],
+      "choices": [
+        {
+          "label": "Pull the high-pressure fuel pipes manually",
+          "next": "a3_bridge_control"
+        },
+        {
+          "label": "Hotwire the external mainframe terminal",
+          "next": "a3_airlock_struggle"
+        }
+      ]
+    },
+    "a3_bridge_control": {
+      "mood": "tense",
+      "lines": [
+        {
+          "speaker": "narrator",
+          "text": "The primary control terminal flickers to life, casting a cold, blue glow over the lifeless bodies of the crew slumped in the shadows.",
+          "audio": "/scripted/starship/a3_bridge_control-0.mp3"
+        },
+        {
+          "speaker": "Dr. Aris Thorne",
+          "text": "Tsk. We must route the remaining reserve to the stasis deck immediately; those ten thousand souls are suffocating.",
+          "audio": "/scripted/starship/a3_bridge_control-1.mp3"
+        },
+        {
+          "speaker": "Chief Engineer Valeria Vance",
+          "text": "The auxiliary grid can't handle both systems, doc. If we don't broadcast the distress beacon now, no one even knows we're out here, ...yeah?",
+          "audio": "/scripted/starship/a3_bridge_control-2.mp3"
+        },
+        {
+          "speaker": "Security Officer Marcus Kane",
+          "text": "Hmmm. Survival requires extraction, engineer. Make your decision at the console before the remaining cells bleed dry.",
+          "audio": "/scripted/starship/a3_bridge_control-3.mp3"
+        },
+        {
+          "speaker": "narrator",
+          "text": "The terminal blinks before you, waiting for your input to decide the fate of the ship's last breath of power.",
+          "audio": "/scripted/starship/a3_bridge_control-4.mp3"
+        }
+      ],
+      "choices": [
+        {
+          "label": "Power the colonist stasis pods",
+          "next": "end_triumphant"
+        },
+        {
+          "label": "Broadcast a deep space distress signal",
+          "next": "end_bittersweet"
+        }
+      ]
+    },
+    "a3_airlock_struggle": {
+      "mood": "combat",
+      "lines": [
+        {
+          "speaker": "narrator",
+          "text": "The outer airlock door screeches open, tearing a violent hole into the silent void of space as the deck's atmosphere rushes out in a freezing torrent.",
+          "audio": "/scripted/starship/a3_airlock_struggle-0.mp3"
+        },
+        {
+          "speaker": "Dr. Aris Thorne",
+          "text": "tsk- My fingers- I cannot hold on, the pressure differential is pulling me through!",
+          "audio": "/scripted/starship/a3_airlock_struggle-1.mp3"
+        },
+        {
+          "speaker": "Chief Engineer Valeria Vance",
+          "text": "Grab the bulkhead frame and wedge yourself in, otherwise we are all fish food, yeah?",
+          "audio": "/scripted/starship/a3_airlock_struggle-2.mp3"
+        },
+        {
+          "speaker": "Security Officer Marcus Kane",
+          "text": "hmmm- Negative, Engineer! The manual override lever is right there, but reaching for it means letting go of your support.",
+          "audio": "/scripted/starship/a3_airlock_struggle-3.mp3"
+        },
+        {
+          "speaker": "narrator",
+          "text": "Heavy cargo crates slide past into the dark abyss, and your fingers are slipping fast from the freezing metal frame.",
+          "audio": "/scripted/starship/a3_airlock_struggle-4.mp3"
+        }
+      ],
+      "choices": [
+        {
+          "label": "Pull the emergency airlock seal lever",
+          "next": "end_bittersweet"
+        },
+        {
+          "label": "Hold onto the metal support beams",
+          "next": "end_tragic"
+        }
+      ]
+    },
+    "end_triumphant": {
+      "mood": "triumphant",
+      "isEnding": true,
+      "endingId": "end_triumphant",
+      "lines": [
+        {
+          "speaker": "narrator",
+          "text": "The emergency red-alerts finally fade to a calm, steady blue as the starship's hyperdrive hum stabilizes.",
+          "audio": "/scripted/starship/end_triumphant-0.mp3"
+        },
+        {
+          "speaker": "Chief Engineer Valeria Vance",
+          "text": "We pulled her back from the brink, and I couldn't have done it without a reliable partner at the helm,... yeah?",
+          "audio": "/scripted/starship/end_triumphant-1.mp3"
+        },
+        {
+          "speaker": "Dr. Aris Thorne",
+          "text": "tsk, My heart rate has finally plummeted back to nominal levels, though I must admit the adrenaline was rather exhilarating.",
+          "audio": "/scripted/starship/end_triumphant-2.mp3"
+        },
+        {
+          "speaker": "Security Officer Marcus Kane",
+          "text": "Saboteur is secured in the brig and all vital deck systems are green. Excellent work.",
+          "audio": "/scripted/starship/end_triumphant-3.mp3"
+        },
+        {
+          "speaker": "narrator",
+          "text": "Standing beside a crew united in survival, you gaze out into the starlit void, ready for whatever lies beyond.",
+          "audio": "/scripted/starship/end_triumphant-4.mp3"
+        }
+      ],
+      "choices": []
+    },
+    "end_tragic": {
+      "mood": "tragic",
+      "isEnding": true,
+      "endingId": "end_tragic",
+      "lines": [
+        {
+          "speaker": "narrator",
+          "text": "The vacuum of space has claimed the starship, leaving only a freezing, silent void where your crew once fought to survive.",
+          "audio": "/scripted/starship/end_tragic-0.mp3"
+        }
+      ],
+      "choices": []
+    },
+    "end_bittersweet": {
+      "mood": "calm",
+      "isEnding": true,
+      "endingId": "end_bittersweet",
+      "lines": [],
+      "choices": []
+    }
+  }
+}

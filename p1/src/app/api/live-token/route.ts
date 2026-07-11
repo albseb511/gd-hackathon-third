@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import { MODELS } from "@/lib/models";
-import { buildLiveConnectConfig } from "@/lib/storyEngine/liveConfig";
+import { buildLiveConnectConfig, voiceForGenre } from "@/lib/storyEngine/liveConfig";
 import { buildNarratorSystemPrompt } from "@/lib/storyEngine/systemPrompt";
 import { loadPlaythroughContext } from "@/lib/storyEngine/loadContext";
 
@@ -27,6 +27,7 @@ export async function POST(req: NextRequest) {
   const model = body.model ?? MODELS.live;
 
   let systemInstruction = TEST_PROMPT;
+  let voiceName = body.voiceName;
   if (body.playthroughId) {
     const ctx = await loadPlaythroughContext(body.playthroughId);
     if (!ctx) {
@@ -40,6 +41,7 @@ export async function POST(req: NextRequest) {
       recentScenes: ctx.recentScenes,
       resume: body.resume ?? ctx.sceneCount > 0,
     });
+    voiceName ??= voiceForGenre(ctx.outline.genre).voiceName;
   }
 
   const client = new GoogleGenAI({
@@ -58,7 +60,7 @@ export async function POST(req: NextRequest) {
           config: buildLiveConnectConfig({
             systemInstruction,
             resumeHandle: body.resumeHandle,
-            voiceName: body.voiceName,
+            voiceName,
           }),
         },
         httpOptions: { apiVersion: "v1alpha" },

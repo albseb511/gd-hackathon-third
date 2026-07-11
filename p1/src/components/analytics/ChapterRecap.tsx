@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import BranchMap from "./BranchMap";
 import JourneyTimeline from "./JourneyTimeline";
+import { prettyEnding, shorten } from "@/lib/sim/aggregate";
 import type { AggregateResult } from "@/lib/sim/aggregate";
 
 interface AnalyticsPayload {
@@ -97,7 +98,7 @@ export default function ChapterRecap({
                         key={e.endingId}
                         className="rounded-lg border border-zinc-800 px-4 py-2 text-base"
                       >
-                        <span className="text-zinc-200">{e.endingId.replace(/^ending[_-]?/, "")}</span>{" "}
+                        <span className="text-zinc-200">{prettyEnding(e.endingId, e.tone)}</span>{" "}
                         <span className="text-amber-400">{e.pct}%</span>
                       </div>
                     ))}
@@ -107,12 +108,15 @@ export default function ChapterRecap({
 
               {data.aggregate.choiceStats.slice(0, 4).map((c) => (
                 <div key={c.beatId} className="mb-4">
-                  <p className="text-zinc-400 text-sm mb-1">{c.beatId}</p>
+                  <p className="text-zinc-400 text-sm mb-1">
+                    {data.aggregate.nodes.find((n) => n.beatId === c.beatId)?.label ??
+                      c.beatId.replace(/[_-]+/g, " ")}
+                  </p>
                   {c.options.map((o) => (
                     <div key={o.option} className="flex items-center gap-2 mb-1">
                       <div className="h-1.5 bg-amber-500/70 rounded" style={{ width: `${Math.max(2, o.pct)}%`, maxWidth: "60%" }} />
                       <span className="text-zinc-300 text-sm">
-                        {o.pct}% — {o.option}
+                        {o.pct}% — {shorten(o.option, 40)}
                       </span>
                     </div>
                   ))}

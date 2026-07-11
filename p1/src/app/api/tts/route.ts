@@ -22,10 +22,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Expected JSON body" }, { status: 400 });
   }
 
-  const { text, voiceName, style } = (body ?? {}) as {
+  const { text, voiceName, style, stream } = (body ?? {}) as {
     text?: unknown;
     voiceName?: unknown;
     style?: unknown;
+    stream?: unknown;
   };
 
   if (typeof text !== "string" || !text.trim()) {
@@ -42,6 +43,66 @@ export async function POST(req: Request) {
   }
 
   const delivery = style?.trim() || "naturally, in character";
+
+  // Streaming mode: NDJSON lines of { c: base64Pcm } as chunks arrive from
+  // generateContentStream — first audio in ~2s instead of a whole-clip wait.
+  if (stream === true) {
+    try {
+      const t0 = performance.now();
+      const iterable = await genai().models.generateContentStream({
+        model: MODELS.tts,
+        contents: `Say ${delivery}: ${text}`,
+        config: {
+          responseModalities: ["AUDIO"],
+          speechConfig: {
+            voiceConfig: { prebuiltVoiceConfig: { voiceName } },
+          },
+        },
+      });
+      const encoder = new TextEncoder();
+      const out = new ReadableStream<Uint8Array>({
+        async start(controller) {
+          let first = true;
+          try {
+            for await (const chunk of iterable) {
+              const data = chunk.candidates?.[0]?.content?.parts?.find(
+                (p) => p.inlineData?.data,
+              )?.inlineData?.data;
+              if (data) {
+                if (first) {
+                  first = false;
+                  console.log(
+                    `[timing] tts-first-chunk ${Math.round(performance.now() - t0)}ms`,
+                  );
+                }
+                controller.enqueue(encoder.encode(JSON.stringify({ c: data }) + "\n"));
+              }
+            }
+            controller.enqueue(encoder.encode(JSON.stringify({ done: true }) + "\n"));
+          } catch (e) {
+            controller.enqueue(
+              encoder.encode(
+                JSON.stringify({ error: e instanceof Error ? e.message : "tts stream failed" }) + "\n",
+              ),
+            );
+          } finally {
+            controller.close();
+          }
+        },
+      });
+      return new Response(out, {
+        headers: {
+          "content-type": "application/x-ndjson",
+          "cache-control": "no-store",
+        },
+      });
+    } catch (err) {
+      return NextResponse.json(
+        { error: err instanceof Error ? err.message : "TTS failed" },
+        { status: 502 },
+      );
+    }
+  }
 
   try {
     const res = await withTiming("tts", { model: MODELS.tts }, () =>

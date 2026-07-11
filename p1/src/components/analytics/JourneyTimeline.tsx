@@ -2,6 +2,7 @@
 // road) as a big, kid-readable vertical timeline instead of the SVG graph.
 // Pure DOM, no hooks — renders in server pages and client overlays alike.
 
+import { prettyEnding, shorten } from "@/lib/sim/aggregate";
 import type { AggregateResult } from "@/lib/sim/aggregate";
 
 interface Props {
@@ -21,22 +22,9 @@ interface Step {
   arrival?: { rare: boolean; pct: number };
 }
 
-const ENDING_EMOJI: Record<string, string> = {
-  tragic: "💔",
-  bittersweet: "🌗",
-  triumphant: "🌅",
-  "(unfinished)": "⏳",
-};
-
 /** options sometimes arrive already quoted — strip so we can add our own */
 function unquote(s: string): string {
   return s.trim().replace(/^["“”']+/, "").replace(/["“”']+$/, "");
-}
-
-function prettyEnding(endingId: string): string {
-  const name = endingId.replace(/^ending[_-]?/, "").replace(/[_-]/g, " ");
-  if (name === "(unfinished)") return "Still unfinished";
-  return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
 function buildSteps(
@@ -55,7 +43,7 @@ function buildSteps(
   const chapterFor = (beatId: string): { chapter: string; isEnding: boolean } => {
     const node = nodeById.get(beatId);
     const actId = node?.actId ?? "";
-    if (actId === "ending" || beatId.startsWith("ending"))
+    if (actId === "ending" || /^end(ing)?[_-]/i.test(beatId))
       return { chapter: "The End", isEnding: true };
     if (actId === "improvised") return { chapter: "A surprise turn", isEnding: false };
     if (!node) return { chapter: "The beginning", isEnding: false };
@@ -89,7 +77,7 @@ function buildSteps(
     const node = nodeById.get(beatId);
     const { chapter, isEnding } = chapterFor(beatId);
     const label = isEnding
-      ? `${ENDING_EMOJI[beatId.replace(/^ending[_-]?/, "")] ?? "⭐"} A ${prettyEnding(beatId).toLowerCase()} ending`
+      ? `${prettyEnding(beatId)} ending`
       : (node?.label ??
         (beatId === "start"
           ? "Your story begins…"
@@ -98,7 +86,10 @@ function buildSteps(
     // what most players picked at this beat
     const stat = aggregate.choiceStats.find((c) => c.beatId === beatId);
     const topChoice = stat?.options[0]
-      ? { option: unquote(stat.options[0].option), pct: Math.round(stat.options[0].pct) }
+      ? {
+          option: shorten(unquote(stat.options[0].option), 40),
+          pct: Math.round(stat.options[0].pct),
+        }
       : undefined;
 
     // player mode: was the road INTO this step busy or rare?
@@ -270,7 +261,6 @@ export default function JourneyTimeline({ aggregate, playerPath, simCount }: Pro
           </p>
           <div className="space-y-3">
             {aggregate.endings.map((e) => {
-              const key = e.endingId.replace(/^ending[_-]?/, "");
               return (
                 <div
                   key={e.endingId}
@@ -278,8 +268,7 @@ export default function JourneyTimeline({ aggregate, playerPath, simCount }: Pro
                 >
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-xl text-zinc-50">
-                      <span className="mr-2">{ENDING_EMOJI[key] ?? "⭐"}</span>
-                      {prettyEnding(e.endingId)}
+                      {prettyEnding(e.endingId, e.tone)}
                     </p>
                     <span className="text-amber-300 text-xl font-semibold shrink-0">
                       {Math.round(e.pct)}%

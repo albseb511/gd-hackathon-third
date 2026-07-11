@@ -2,8 +2,12 @@
 // players chose Y" stats, ending distribution, unreached beats, and latency
 // percentiles. No I/O — feeds both the CLI report and any future dashboard.
 
-import type { StoryOutline } from "../storyEngine/types";
+import type { OutlineBeat, StoryOutline } from "../storyEngine/types";
 import type { SimRunResult } from "./simulate";
+
+// Outline beats are gaining short 2-4 word `label` titles; tolerate data that
+// hasn't been backfilled yet by falling back to a shortened summary.
+type LabeledBeat = OutlineBeat & { label?: string };
 
 export interface AggregateNode {
   beatId: string;
@@ -25,6 +29,8 @@ export interface ChoiceStat {
 
 export interface EndingStat {
   endingId: string;
+  /** outline tone (tragic | bittersweet | triumphant | …) when known */
+  tone?: string;
   count: number;
   pct: number;
 }
@@ -45,7 +51,41 @@ export interface AggregateResult {
   latency: LatencyStat[];
 }
 
-const truncate = (s: string, n = 48) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
+/** Word-boundary truncation — never cuts mid-word ("The bridge is b…"). */
+export function shorten(s: string, n = 26): string {
+  const t = s.trim();
+  if (t.length <= n) return t;
+  const cut = t.slice(0, n + 1);
+  const sp = cut.lastIndexOf(" ");
+  const head = sp > n / 2 ? cut.slice(0, sp) : t.slice(0, n);
+  return `${head.replace(/[\s,;:.!?—-]+$/, "")}…`;
+}
+
+const ENDING_EMOJI: Record<string, string> = {
+  tragic: "💔",
+  bittersweet: "🌗",
+  triumphant: "🌅",
+  unfinished: "⏳",
+};
+
+/**
+ * "end_tragic" / "ending-bittersweet" / "(unfinished)" → "💔 Tragic",
+ * "🌗 Bittersweet", "⏳ Unfinished". The ONE place ending ids get friendly.
+ */
+export function prettyEnding(endingId: string, tone?: string): string {
+  const name = endingId
+    .replace(/^\(/, "")
+    .replace(/\)$/, "")
+    .replace(/^end(ing)?[_-]?/i, "")
+    .replace(/[_-]+/g, " ")
+    .trim();
+  const display = name ? name.charAt(0).toUpperCase() + name.slice(1) : "The end";
+  const emoji =
+    ENDING_EMOJI[(tone ?? "").toLowerCase()] ??
+    ENDING_EMOJI[name.toLowerCase()] ??
+    "⭐";
+  return `${emoji} ${display}`;
+}
 
 const pct = (count: number, total: number) =>
   total === 0 ? 0 : Math.round((count / total) * 1000) / 10;
@@ -70,22 +110,26 @@ export function aggregate(runs: SimRunResult[], outline: StoryOutline): Aggregat
   for (const act of outline.acts) {
     for (const beat of act.beats) {
       outlineBeatIds.add(beat.id);
+      const short = (beat as LabeledBeat).label?.trim();
       nodes.push({
         beatId: beat.id,
-        label: truncate(beat.summary),
+        label: short || shorten(beat.summary),
         visits: visits.get(beat.id) ?? 0,
         actId: act.id,
       });
     }
   }
   const endingIds = new Set(outline.endings.map((e) => e.id));
+  const endingTone = new Map(outline.endings.map((e) => [e.id, e.tone]));
   // Beats that showed up in paths but aren't in the outline (GM improvisation
   // or ending ids written as beats) still get nodes so edges stay connected.
   for (const beatId of visits.keys()) {
     if (!outlineBeatIds.has(beatId)) {
       nodes.push({
         beatId,
-        label: endingIds.has(beatId) ? `(ending) ${beatId}` : `(improvised) ${beatId}`,
+        label: endingIds.has(beatId)
+          ? prettyEnding(beatId, endingTone.get(beatId))
+          : shorten(beatId.replace(/[_-]+/g, " ")),
         visits: visits.get(beatId) ?? 0,
         actId: endingIds.has(beatId) ? "ending" : "improvised",
       });
@@ -132,7 +176,12 @@ export function aggregate(runs: SimRunResult[], outline: StoryOutline): Aggregat
     endingCounts.set(id, (endingCounts.get(id) ?? 0) + 1);
   }
   const endings: EndingStat[] = [...endingCounts.entries()]
-    .map(([endingId, count]) => ({ endingId, count, pct: pct(count, runs.length) }))
+    .map(([endingId, count]) => ({
+      endingId,
+      tone: endingTone.get(endingId),
+      count,
+      pct: pct(count, runs.length),
+    }))
     .sort((a, b) => b.count - a.count);
 
   // ---- unreached outline beats ---------------------------------------------------

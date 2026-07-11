@@ -1,5 +1,6 @@
 import BranchMap from "@/components/analytics/BranchMap";
 import JourneyTimeline from "@/components/analytics/JourneyTimeline";
+import { prettyEnding } from "@/lib/sim/aggregate";
 import Link from "next/link";
 
 async function getData(storyId: string) {
@@ -61,21 +62,30 @@ export default async function AnalyticsPage({
             Ending distribution
           </h2>
           {data.aggregate.endings.map(
-            (e: { endingId: string; count: number; pct: number }) => (
+            (e: { endingId: string; tone?: string; count: number; pct: number }) => (
               <div key={e.endingId} className="mb-2 flex items-center gap-3">
                 <div
                   className="h-2 rounded bg-amber-500/80"
                   style={{ width: `${Math.max(2, e.pct) * 2}px` }}
                 />
                 <span className="text-zinc-300 text-base">
-                  {e.endingId} <span className="text-zinc-500">({e.count} · {e.pct}%)</span>
+                  {prettyEnding(e.endingId, e.tone)}{" "}
+                  <span className="text-zinc-500">({e.count} · {e.pct}%)</span>
                 </span>
               </div>
             ),
           )}
           {data.aggregate.unreachedBeats.length > 0 && (
             <p className="text-zinc-600 text-sm mt-4">
-              unreached beats: {data.aggregate.unreachedBeats.join(", ")}
+              never reached:{" "}
+              {data.aggregate.unreachedBeats
+                .map(
+                  (id: string) =>
+                    (data.aggregate.nodes as { beatId: string; label: string }[]).find(
+                      (n) => n.beatId === id,
+                    )?.label ?? id.replace(/[_-]+/g, " "),
+                )
+                .join(" · ")}
             </p>
           )}
         </section>

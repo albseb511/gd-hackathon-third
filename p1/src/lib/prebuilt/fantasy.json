@@ -33,61 +33,65 @@
       "beats": [
         {
           "id": "a1_granary",
-          "summary": "You stand inside the central granary, witnessing the first snow filter through the rafters onto mounds of ash-choked, glowing purple barley.",
+          "summary": "You must decide whether to hide the newly discovered purple blight on the barley or force Chieftain Garrick to ration the remaining grain.",
           "sceneHint": "A drafty, wooden granary interior at twilight. Snow flurries float through a broken skylight, landing on moldering purple crops. Maeve is kneeling, probing the rot with a knife.",
           "choiceHints": [
-            "Conceal the extent of the rot to prevent immediate panic in the streets.",
-            "Demand Garrick declare an immediate state of emergency and ration what is left."
+            "Hide the blighted barley from citizens.",
+            "Order Garrick to ration remaining grain."
           ],
           "leadsTo": [
             "a1_tavern",
             "a1_deepmine"
-          ]
+          ],
+          "label": "The Blighted Granary"
         },
         {
           "id": "a1_tavern",
-          "summary": "The tavern is boiling with scared, shouting miners. You must gamble on a high-stakes persuasion check to calm the growing mob before they riot and destroy Maeve's lab supplies.",
+          "summary": "You must calm a rowdy mob of panicked miners before they destroy Maeve's laboratory supplies.",
           "sceneHint": "A crowded, warm-lit stone tavern filled with burly workers clutching iron mugs. Shadows dance wildly from a massive stone hearth. Odin stands cowering on a table.",
           "choiceHints": [
-            "Charm them with tales of past winter triumphs to restore their faith.",
-            "Shame their cowardice and invoke the ancient law of the mountain hold."
+            "Recount past winter triumphs to miners.",
+            "Invoke ancient laws to discipline them."
           ],
           "leadsTo": [
             "a1_altar",
             "a1_deepmine"
-          ]
+          ],
+          "label": "The Boiling Tavern"
         },
         {
           "id": "a1_deepmine",
-          "summary": "You descent into the lowest coal shafts and find a massive, freshly opened fissure humming with ancient geothermal energy.",
+          "summary": "You discover a humming geothermal fissure in the deep mines and must choose whether to explore it or seal it shut.",
           "sceneHint": "A dark, cramped mining tunnel lit only by flickering lanterns. Dust falls from the ceiling. A deep fissure glows with a soft, pulsing violet light.",
           "choiceHints": [
-            "Drop down into the warm, rumbling fissure to find the source.",
-            "Attempt to seal the fissure with timber and mortar before the air turns sour."
+            "Jump into the humming geothermal fissure.",
+            "Seal the fissure with sturdy timber."
           ],
           "qte": {
             "type": "mash",
-            "stakes": "Hold up a collapsing support beam to escape a sudden cave-in.",
+            "stakes": "Successfully catching the falling support beam keeps you safe, while failing crushes you under falling stone.",
             "winBeat": "a1_altar",
             "loseBeat": "a2_confrontation"
           },
           "leadsTo": [
             "a1_altar",
             "a2_confrontation"
-          ]
+          ],
+          "label": "The Whispering Fissure"
         },
         {
           "id": "a1_altar",
-          "summary": "At the outdoor mountain shrine, a colossal runestone begins to bleed dark, warm oil, melting the falling snow around it.",
+          "summary": "You discover a bleeding runestone melting the mountain snow and must decide how to purge its dark corruption.",
           "sceneHint": "A snowy outdoor cliffside at dusk. A tall, carved monolithic runestone is glistening with dark, viscous oil that steam as it hits the snow-covered ground.",
           "choiceHints": [
-            "Anoint yourself with the warm oil to attempt a psychic link with the stone.",
-            "Chip away the corrupt runes using a silver pickaxe."
+            "Anoint yourself with the dark oil.",
+            "Chop away the runes with silver."
           ],
           "leadsTo": [
             "a2_investigate",
             "a2_confrontation"
-          ]
+          ],
+          "label": "The Weeping Runestone"
         }
       ]
     },
@@ -97,61 +101,65 @@
       "beats": [
         {
           "id": "a2_investigate",
-          "summary": "In Maeve’s workshop, you must execute a risky wit gamble to synthesize an untested antidote from glowing cave fungus, risking a laboratory explosion.",
+          "summary": "You must synthesize a fragile antidote from glowing fungus in Maeve's workshop without triggering a deadly explosion.",
           "sceneHint": "An alchemist's lab crowded with glass coils, bubbling cauldrons, and drying herbs. Maeve holds a beaker of boiling purple liquid that flares with erratic sparks.",
           "choiceHints": [
-            "Add a volatile drop of dragon-fire oil to stabilize the reaction.",
-            "Slowly distill the mixture over a gentle, steady geothermal vent."
+            "Mix dragon-fire oil into the mixture.",
+            "Distill the mixture over the vent."
           ],
           "leadsTo": [
             "a2_mine_descent",
             "a2_barricade"
-          ]
+          ],
+          "label": "Maeve's Volatile Workshop"
         },
         {
           "id": "a2_confrontation",
-          "summary": "You corner Chieftain Garrick in the great hall. You must gamble on a harsh intimidation check to force him to reveal the vault keys, risking being locked in the dungeon.",
+          "summary": "You must interrogate Chieftain Garrick in the great hall to secure the vault keys before guards arrest you.",
           "sceneHint": "The grand high-roofed hall, lit by two enormous, roaring hearths. Garrick sits heavily on a stone throne, gripping his warhammer, looking weary and guilty.",
           "choiceHints": [
-            "Threaten to expose his family's past sins to the council of elders.",
-            "Appeal to his duty as protector of the clan's future generations."
+            "Threaten to expose Garrick's family secrets.",
+            "Appeal to Garrick's duty to protect."
           ],
           "leadsTo": [
             "a2_mine_descent",
             "a2_barricade"
-          ]
+          ],
+          "label": "The Chieftain's Secrets"
         },
         {
           "id": "a2_mine_descent",
-          "summary": "You descend into the beating, molten heart of the mountain where ancient, soot-covered mechanisms are grinding to life.",
+          "summary": "You must disable the awakening, ancient machinery in the molten depths of the mountain before it overheats.",
           "sceneHint": "An immense underground chamber with rivers of lava and massive bronze gears. Steam hissed from iron pipes, casting dynamic, long shadows.",
           "choiceHints": [
-            "Manually override the heavy pressure valves to cool the chamber.",
-            "Jam the colossal gears with debris to stop the machine entirely."
+            "Override heavy pressure valves manually.",
+            "Jam the gears with loose debris."
           ],
           "qte": {
             "type": "sequence",
-            "stakes": "Dodge a sudden burst of pressurized, superheated steam from a ruptured pipe.",
+            "stakes": "Successfully dodging the superheated steam keeps you unhurt, while failing severely burns you.",
             "winBeat": "a3_beast_lair",
             "loseBeat": "a3_collapse"
           },
           "leadsTo": [
             "a3_beast_lair",
             "a3_collapse"
-          ]
+          ],
+          "label": "The Molten Engine"
         },
         {
           "id": "a2_barricade",
-          "summary": "Crazed subterranean pests, driven mad by the rumbling mountain, swarm the outer barricades of the inner hold.",
+          "summary": "You must defend the inner hold's barricades from a swarm of subterranean beasts driven mad by the tremors.",
           "sceneHint": "A stone bridge leading into the fortress. Snow falls heavily. Miners in heavy coats stand behind crude wooden spikes, holding torches against scurrying shadow beasts.",
           "choiceHints": [
-            "Order the gates closed, leaving the lower farms to be overrun.",
-            "Lead a desperate counter-charge onto the narrow bridge to buy time."
+            "Close gates to abandon lower farms.",
+            "Charge the swarm on the bridge."
           ],
           "leadsTo": [
             "a3_hearth_room",
             "a3_altar_final"
-          ]
+          ],
+          "label": "The Swarming Barricade"
         }
       ]
     },
@@ -161,55 +169,59 @@
       "beats": [
         {
           "id": "a3_hearth_room",
-          "summary": "You stand before the Great Hearth of the founders. To save the hold, you must light the hearth with the last of the pure, unblighted coal.",
+          "summary": "You stand before the ancient Great Hearth and must make a desperate sacrifice to stoke its purifying flames.",
           "sceneHint": "The deepest sanctum of the hold. A massive, cold iron hearth shaped like an open mouth. Garrick stands ready with a single glowing ember.",
           "choiceHints": [
-            "Sacrifice the remaining food reserves to stoke the purifying flame.",
-            "Use Maeve’s unstable alchemical brew to cause a massive, cleansing blast."
+            "Burn remaining food to stoke fire.",
+            "Throw Maeve's explosive brew into fire."
           ],
           "leadsTo": [
             "end_triumphant",
             "end_bittersweet"
-          ]
+          ],
+          "label": "The Great Hearth"
         },
         {
           "id": "a3_beast_lair",
-          "summary": "You stand face-to-face with the Earth-Heart, a colossal colossus of stone and magma waking from its millennial slumber.",
+          "summary": "You must confront the colossal Earth-Heart deity to quiet the destructive seismic rumbles fracturing your home.",
           "sceneHint": "A cavernous geode chamber. A giant humanoid figure made of interlocking volcanic stone and glowing veins of orange magma rises from a lake of gold.",
           "choiceHints": [
-            "Offer your own life force to lull the ancient titan back to sleep.",
-            "Drive a runic spike directly into its molten core to shatter it forever."
+            "Sacrifice your life force to titan.",
+            "Drive a runic spike into core."
           ],
           "leadsTo": [
             "end_triumphant",
             "end_tragic"
-          ]
+          ],
+          "label": "The Earth-Heart's Lair"
         },
         {
           "id": "a3_altar_final",
-          "summary": "Amidst a howling blizzard on the highest peak, the final ritual must be performed on the weeping bleeding runestone.",
+          "summary": "You must perform a final ritual at the frozen peak's bleeding runestone to save the valley below from destruction.",
           "sceneHint": "A windswept mountain peak in a violent whiteout. The runestone is glowing with an intense, blinding purple aura. Maeve's hair is whipped wild by the storm.",
           "choiceHints": [
-            "Smash the runestone, releasing a shockwave that will bury the mountain in snow.",
-            "Channel the corruption into yourself to save the land below."
+            "Smash the runestone with your pickaxe.",
+            "Absorb the runestone's corruption yourself."
           ],
           "leadsTo": [
             "end_bittersweet",
             "end_tragic"
-          ]
+          ],
+          "label": "The Peak Ritual"
         },
         {
           "id": "a3_collapse",
-          "summary": "The cavern ceiling begins to rain boulders as the hold fractures. You must organize a desperate evacuation through the crumbling high passes.",
+          "summary": "You must evacuate the collapsing mountain hold through freezing high passes as debris rains down.",
           "sceneHint": "A collapsing stone hallway. Dust and heavy stone blocks crash down around escaping clanfolk. Odin is trapped under a fallen pillar.",
           "choiceHints": [
-            "Stop to free Odin, risking the lives of the fleeing elders.",
-            "Abandon the wounded and push the crowd forward into the freezing storm."
+            "Free Odin from the falling debris.",
+            "Push the crowd into the storm."
           ],
           "leadsTo": [
             "end_bittersweet",
             "end_tragic"
-          ]
+          ],
+          "label": "The Collapsing Pass"
         }
       ]
     }

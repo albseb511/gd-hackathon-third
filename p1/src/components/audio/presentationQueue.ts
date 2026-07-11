@@ -27,7 +27,16 @@ type VisualSegment = {
   ready: Promise<unknown> | null;
   apply: () => void;
 };
-type Segment = LiveSegment | TtsSegment | VisualSegment;
+// Streamed dialogue: audio chunks scheduled as they download — the character
+// starts speaking on the first chunk, sentences pipeline behind it.
+type TtsStreamSegment = {
+  kind: "tts-stream";
+  speaker: string;
+  line: string;
+  feed: AsyncGenerator<string, void, unknown>; // yields base64 PCM chunks
+  cancel: () => void;
+};
+type Segment = LiveSegment | TtsSegment | VisualSegment | TtsStreamSegment;
 
 export interface SpeakerInfo {
   speaker: string; // "narrator" or a character name
@@ -87,6 +96,19 @@ export class PresentationQueue {
     this.poke();
   }
 
+  /** A streamed character line: chunks play as they arrive, in stream order. */
+  pushTtsStream(
+    speaker: string,
+    line: string,
+    feed: AsyncGenerator<string, void, unknown>,
+    cancel: () => void,
+  ) {
+    const tail = this.segments[this.segments.length - 1];
+    if (tail?.kind === "live") tail.closed = true;
+    this.segments.push({ kind: "tts-stream", speaker, line, feed, cancel });
+    this.poke();
+  }
+
   /** A scene/visual change that should land in sync with the narration. */
   pushVisual(apply: () => void, ready: Promise<unknown> | null = null) {
     const tail = this.segments[this.segments.length - 1];
@@ -98,6 +120,13 @@ export class PresentationQueue {
   /** Barge-in: kill everything, everywhere, now. */
   flush() {
     this.epoch++;
+    for (const s of this.segments) {
+      if (s.kind === "tts-stream") {
+        try {
+          s.cancel();
+        } catch {}
+      }
+    }
     this.segments = [];
     for (const s of this.sources) {
       try {
@@ -239,6 +268,41 @@ export class PresentationQueue {
           continue;
         }
 
+        if (seg.kind === "tts-stream") {
+          // let prior audio finish, then schedule chunks AS THEY DOWNLOAD
+          await this.waitUntilCursor(epoch);
+          if (this.epoch !== epoch) break;
+          this.onSpeaker({ speaker: seg.speaker, line: seg.line });
+          let got = false;
+          try {
+            // first-chunk timeout lives inside the feed (speakLine wraps it)
+            for await (const chunk of seg.feed) {
+              if (this.epoch !== epoch) {
+                seg.cancel();
+                break;
+              }
+              got = true;
+              this.schedule(chunk);
+            }
+          } catch {
+            // stream died mid-line; whatever played, played
+          }
+          this.onClipResult(got, seg.speaker);
+          if (this.epoch !== epoch) break;
+          if (got) {
+            await this.waitUntilCursor(epoch);
+          } else {
+            // silent line: hold the caption a beat so it still lands
+            await new Promise((r) =>
+              setTimeout(r, Math.min(3500, 900 + seg.line.length * 45)),
+            );
+          }
+          if (this.epoch !== epoch) break;
+          this.onSpeaker(null);
+          this.segments.shift();
+          continue;
+        }
+
         // TTS segment: let prior audio finish, then play the clip
         await this.waitUntilCursor(epoch);
         if (this.epoch !== epoch) break;
@@ -268,6 +332,7 @@ export class PresentationQueue {
         this.segments.some(
           (s) =>
             s.kind === "tts" ||
+            s.kind === "tts-stream" ||
             s.kind === "visual" ||
             (s.kind === "live" && s.scheduled < s.chunks.length),
         )

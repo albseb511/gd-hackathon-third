@@ -14,6 +14,7 @@ export async function POST(req: NextRequest) {
     state?: PlayState; // client-authoritative current state
     hadRenderScene?: boolean;
     hadChoices?: boolean;
+    hadSpeakAs?: boolean;
   } | null;
 
   if (!body?.playthroughId || !body.turnText) {
@@ -33,6 +34,7 @@ export async function POST(req: NextRequest) {
       characters: ctx.charactersSheets,
       hadRenderScene: body.hadRenderScene ?? false,
       hadChoices: body.hadChoices ?? false,
+      hadSpeakAs: body.hadSpeakAs ?? false,
     });
     return NextResponse.json(verdict);
   } catch (e) {

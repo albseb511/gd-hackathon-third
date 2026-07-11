@@ -41,6 +41,8 @@ export type Mood =
 
 export interface OutlineBeat {
   id: string;
+  // 2-4 word evocative beat title shown to players, e.g. "The Red Bridge".
+  label?: string;
   summary: string;
   sceneHint: string;
   choiceHints: string[];

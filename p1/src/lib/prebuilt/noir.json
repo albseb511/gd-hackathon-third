@@ -33,61 +33,65 @@
       "beats": [
         {
           "id": "a1_office",
-          "summary": "You meet Maeve Vance in your neon-lit office, where she claims her sister Lily went missing, but her nervous tics suggest a deeper lie.",
+          "summary": "You interview Maeve Vance about her missing sister while trying to spot her hidden lies.",
           "sceneHint": "Dimly lit office, rain drumming on the blinds, casting slatted shadows across Maeve's face. Neon pink from the street sign colors the wet glass.",
           "choiceHints": [
-            "Confront Maeve immediately about her lies, risking her cooperation.",
-            "Play along to gain her trust, leaving yourself vulnerable to her trap."
+            "Confront Maeve about her nervous lies",
+            "Play along to gain Maeve's trust"
           ],
           "leadsTo": [
             "a1_alley",
             "a1_interrogation"
-          ]
+          ],
+          "label": "A Nervous Client"
         },
         {
           "id": "a1_alley",
-          "summary": "You investigate the alley behind Lily's last known apartment. You must make a risky Wit check to search the wet dumpster for clues before a suspicious syndicate lookout spots you.",
+          "summary": "You search a dark alley for clues about Lily before a syndicate lookout spots you.",
           "sceneHint": "Narrow brick alleyway shimmering with puddle reflections. A flickering yellow light bulb hangs over a dumpster. A lookout smokes a cigarette nearby.",
           "choiceHints": [
-            "Sneak close to search the trash, risking a violent confrontation.",
-            "Bribe the lookout with your last remaining cash, depleting your resources."
+            "Search the dumpster for clues quietly",
+            "Bribe the syndicate lookout with cash"
           ],
           "leadsTo": [
             "a1_docks",
             "a1_interrogation"
-          ]
+          ],
+          "label": "The Wet Alley"
         },
         {
           "id": "a1_docks",
-          "summary": "You trace Lily's footsteps to shipping container 404, but a vicious guard dog is let loose on you. You must escape or subdue it.",
+          "summary": "A guard dog attacks you while you search the docks for Lily's location.",
           "sceneHint": "Foggy shipping yard. Red and blue containers stack like monoliths under towering floodlights. A roaring Doberman leaps through the rain.",
           "choiceHints": [
-            "Scramble up a rusty crane ladder, leaving your investigation kit behind.",
-            "Stand your ground and use your taser, risking a loud alarm."
+            "Climb the rusty crane ladder",
+            "Shoot the attacking dog with your taser"
           ],
           "qte": {
             "type": "sequence",
-            "stakes": "Win and slip inside safely; lose and get bitten, forcing you into Serrano's custody.",
+            "stakes": "Win to slip inside the container safely; lose to get bitten and captured by Serrano.",
             "winBeat": "a2_club_entry",
             "loseBeat": "a1_interrogation"
           },
           "leadsTo": [
             "a2_club_entry",
             "a1_interrogation"
-          ]
+          ],
+          "label": "Container 404"
         },
         {
           "id": "a1_interrogation",
-          "summary": "Detective Serrano corners you in a greasy diner, threatening to revoke your PI license unless you hand over Maeve's case files.",
+          "summary": "Detective Serrano threatens to revoke your license unless you hand over Maeve's case files.",
           "sceneHint": "Diner booth under buzzing fluorescent lights. Serrano slides a wet hand over a plate of cold cherry pie. Rain sheets down the window.",
           "choiceHints": [
-            "Hand over fake documents, risking a Wit check to see if he notices the forgery.",
-            "Threaten him with old blackmail, burning your bridge with the police department entirely."
+            "Hand Serrano forged case documents",
+            "Threaten Serrano with old blackmail files"
           ],
           "leadsTo": [
             "a2_club_entry",
             "a2_barons_den"
-          ]
+          ],
+          "label": "Serrano's Ultimatum"
         }
       ]
     },
@@ -97,61 +101,65 @@
       "beats": [
         {
           "id": "a2_club_entry",
-          "summary": "You arrive at 'The Neon Pearl', a syndicate club. You must pass a Charm check to bluff the bouncer into letting you in through the VIP entrance.",
+          "summary": "You must bluff or sneak your way past guards into the syndicate's nightclub.",
           "sceneHint": "Outside a glamorous club. A long queue under umbrellas, purple neon lights reflecting off wet asphalt. A massive bouncer in a black suit guards the velvet rope.",
           "choiceHints": [
-            "Impersonate a high-rolling investor, risking immediate exposure if questioned.",
-            "Sneak through the grease-slicked kitchen entrance, ruining your formal disguise."
+            "Impersonate a wealthy high-rolling investor",
+            "Sneak through the greasy kitchen entrance"
           ],
           "leadsTo": [
             "a2_barons_den",
             "a2_vault_heist"
-          ]
+          ],
+          "label": "The Neon Pearl"
         },
         {
           "id": "a2_barons_den",
-          "summary": "You face The Baron in his private lounge. He offers to sell you Lily's location in exchange for framing Maeve for his syndicate's embezzlement.",
+          "summary": "The Baron offers Lily's location if you agree to frame Maeve for embezzlement.",
           "sceneHint": "Opulent lounge with velvet walls and a glass floor looking down into a flooded basement. The Baron sips cognac, rain splashing against the skylight above.",
           "choiceHints": [
-            "Agree to the deal to save Lily, sacrificing Maeve's life to the syndicate.",
-            "Reject the deal and attempt to swipe his master keycard from the desk."
+            "Agree to frame Maeve for embezzlement",
+            "Steal the Baron's master keycard"
           ],
           "leadsTo": [
             "a2_vault_heist",
             "a2_warehouse_chase"
-          ]
+          ],
+          "label": "The Baron's Deal"
         },
         {
           "id": "a2_vault_heist",
-          "summary": "You crack the syndicate's wall safe. You must pass a Wit check to bypass the high-voltage silent alarm before the timer expires.",
+          "summary": "You must disable a high-voltage alarm before the safe lock locks down permanently.",
           "sceneHint": "A dark, wood-paneled office illuminated only by the green glow of a digital safe. Rain lashes against the heavy glass balcony doors.",
           "choiceHints": [
-            "Rush the hack, risking a massive electric shock that injures your hands.",
-            "Take your time to insulate the wires, risking guards catching you mid-theft."
+            "Hack the system code quickly",
+            "Insulate the high-voltage wires carefully"
           ],
           "leadsTo": [
             "a2_warehouse_chase",
             "a3_lighthouse_approach"
-          ]
+          ],
+          "label": "Cracking the Safe"
         },
         {
           "id": "a2_warehouse_chase",
-          "summary": "Syndicate thugs spot you. You must flee across the wet, slippery rooftops of the waterfront warehouses.",
+          "summary": "Armed syndicate thugs chase you across slippery, wet waterfront rooftops.",
           "sceneHint": "Steep metal rooftops slicked with heavy rain. Yellow searchlights sweep across the tiles. Raindrops splash heavily against the camera lens.",
           "choiceHints": [
-            "Take a dangerous leap across a wide alleyway to lose them.",
-            "Turn and fight them in the shadows of a water tower."
+            "Leap across the wet alleyway",
+            "Fight the thugs near the water tower"
           ],
           "qte": {
             "type": "mash",
-            "stakes": "Win and reach the lighthouse cleanly; lose and get captured, starting the final confrontation wounded.",
+            "stakes": "Win to escape cleanly to the lighthouse; lose to be captured and wounded.",
             "winBeat": "a3_lighthouse_approach",
             "loseBeat": "a3_confrontation"
           },
           "leadsTo": [
             "a3_lighthouse_approach",
             "a3_confrontation"
-          ]
+          ],
+          "label": "Rooftop Flight"
         }
       ]
     },
@@ -161,51 +169,54 @@
       "beats": [
         {
           "id": "a3_lighthouse_approach",
-          "summary": "You reach the crumbling, tide-battered cliffside lighthouse where Lily is held. You must sneak past the final wave of lookouts.",
+          "summary": "You must infiltrate the tide-battered cliffside lighthouse where Lily is being held captive.",
           "sceneHint": "A towering black stone lighthouse perched on a jagged cliff. Crashing white waves spray the rocks. A violent thunderstorm rages overhead.",
           "choiceHints": [
-            "Scale the wet cliff face, risking a Might check to avoid falling into the sea.",
-            "Use your remaining syndicate gear to fake an emergency delivery at the main gate."
+            "Scale the wet cliff face",
+            "Disguise yourself as a delivery driver"
           ],
           "leadsTo": [
             "a3_confrontation"
-          ]
+          ],
+          "label": "The Crumbling Lighthouse"
         },
         {
           "id": "a3_confrontation",
-          "summary": "Inside the lighthouse basement, you find Lily bound. Maeve enters, revealing she used you to find Lily first so she could destroy the evidence Lily holds.",
+          "summary": "Maeve corners you and a bound Lily, revealing she intends to destroy the evidence.",
           "sceneHint": "A flooded cellar with water up to the knees. Hanging lightbulbs sway wildly. Maeve stands on the stairs holding a silver revolver.",
           "choiceHints": [
-            "Shield Lily with your body, prioritizing her life over the incriminating evidence.",
-            "Dive for Maeve's gun to secure the evidence, risking Lily's safety."
+            "Shield Lily with your body",
+            "Dive for Maeve's dropped gun"
           ],
           "leadsTo": [
             "a3_final_gamble"
-          ]
+          ],
+          "label": "Maeve's True Colors"
         },
         {
           "id": "a3_final_gamble",
-          "summary": "Detective Serrano arrives with a squad, aiming to kill everyone and burn the lighthouse. You must make a desperate choice to survive the rising tide.",
+          "summary": "Detective Serrano's squad arrives to burn the lighthouse down with everyone inside.",
           "sceneHint": "Water rises to the chest. Sparking electrical wires hang dangerously close to the tide. Serrano stands in the doorway, weapon raised.",
           "choiceHints": [
-            "Shoot the exposed electrical box to flood the room with current, risking everyone's lives.",
-            "Throw the evidence ledger to Serrano as a distraction to buy escape time."
+            "Shoot the exposed electrical box",
+            "Throw the evidence ledger to Serrano"
           ],
           "leadsTo": [
             "a3_escape"
-          ]
+          ],
+          "label": "Serrano's Fire"
         },
         {
           "id": "a3_escape",
-          "summary": "The lighthouse begins to collapse into the sea. You must swim through the flooded tunnel to safety.",
+          "summary": "The collapsing lighthouse floods as you scramble to swim through the escape tunnel.",
           "sceneHint": "Submerged stone corridor collapsing. Stone blocks crash into the water, churning up sand and bubbles. A pale circle of moonlight marks the exit.",
           "choiceHints": [
-            "Drag Lily out yourself, pushing your physical limits.",
-            "Use your last flare to signal a passing police boat, risking arrest."
+            "Drag Lily through the flooded tunnel",
+            "Fire a flare to signal the police"
           ],
           "qte": {
             "type": "timed",
-            "stakes": "Win to reach the triumphant or bittersweet ending; lose to sink into the dark ocean.",
+            "stakes": "Win to escape the collapsing ruins alive; lose to drown in the dark ocean.",
             "winBeat": "ending_triumphant",
             "loseBeat": "ending_tragic"
           },
@@ -213,7 +224,8 @@
             "ending_triumphant",
             "ending_bittersweet",
             "ending_tragic"
-          ]
+          ],
+          "label": "The Flooded Tunnel"
         }
       ]
     }

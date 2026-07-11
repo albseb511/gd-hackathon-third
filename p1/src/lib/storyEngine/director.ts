@@ -17,6 +17,7 @@ export interface DirectorInput {
   characters: CharacterSheet[];
   hadRenderScene: boolean;
   hadChoices: boolean;
+  hadSpeakAs?: boolean;
 }
 
 export interface DirectorVerdict {
@@ -26,6 +27,7 @@ export interface DirectorVerdict {
   socialPatch: NarratorPatch | null;
   spokeSuggestions: boolean; // narrator voiced the player's options aloud
   trueMood: string | null; // emotional beat of the turn, drives the score
+  missedDialogue: string | null; // NPCs present but silent — their names, or null
 }
 
 const RESPONSE_SCHEMA = {
@@ -79,8 +81,13 @@ const RESPONSE_SCHEMA = {
       enum: ["intro", "explore", "calm", "tense", "combat", "tragic", "triumphant"],
       description: "The dominant emotional beat of this turn.",
     },
+    silentCharacters: {
+      type: Type.STRING,
+      description:
+        "If named characters were clearly PRESENT in the scene but not one spoken dialogue line was delivered this turn: their names, comma-separated. Else empty string.",
+    },
   },
-  required: ["continuityIssue", "sceneMissing", "choicesMissing", "spokeSuggestions", "trueMood"],
+  required: ["continuityIssue", "sceneMissing", "choicesMissing", "spokeSuggestions", "trueMood", "silentCharacters"],
 } as const;
 
 export async function runDirector(input: DirectorInput): Promise<DirectorVerdict> {
@@ -118,7 +125,8 @@ Judge:
 3. choicesMissing — true only if the turn clearly ended by offering the player distinct options AND present_choices was not called.
 4. relationshipDeltas / auraTraitsAdd — from the PLAYER's words and manner toward NPCs in the scene, when clearly warranted. Rude or warm behavior shifts scores by 1, betrayals/heroics by 2. Usually empty.
 5. spokeSuggestions — true if the narrator named actions the player could take ("do you X or Y", "you could...", listed options aloud). The on-screen buttons carry options; the narrator must never voice them.
-6. trueMood — the dominant emotional beat of the turn (drives the musical score).`;
+6. trueMood — the dominant emotional beat of the turn (drives the musical score).
+7. silentCharacters — dialogue was ${input.hadSpeakAs ? "" : "NOT "}delivered via the dialogue system this turn. If named characters were present in the scene but stayed silent, list their names — every scene should breathe through dialogue.`;
 
   const res = await withTiming("director", { model: MODELS.text }, () =>
     genai().models.generateContent({
@@ -143,6 +151,7 @@ Judge:
     auraTraitsAdd?: string[];
     spokeSuggestions?: boolean;
     trueMood?: string;
+    silentCharacters?: string;
   };
   try {
     parsed = JSON.parse(res.text ?? "{}");
@@ -174,5 +183,9 @@ Judge:
       : null,
     spokeSuggestions: Boolean(parsed.spokeSuggestions),
     trueMood: parsed.trueMood ?? null,
+    missedDialogue:
+      !input.hadSpeakAs && parsed.silentCharacters?.trim()
+        ? parsed.silentCharacters.trim()
+        : null,
   };
 }

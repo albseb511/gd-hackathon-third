@@ -15,6 +15,7 @@ import {
 } from "@google/genai";
 import { useLiveAudio } from "@/components/audio/useLiveAudio";
 import { PresentationQueue, SpeakerInfo } from "@/components/audio/presentationQueue";
+import { speakLine } from "@/components/audio/speakLine";
 import MicPicker from "@/components/audio/MicPicker";
 import { MusicMixer, bankForGenre } from "@/components/audio/mixer";
 import { playSfx } from "@/components/audio/sfx";
@@ -110,7 +111,11 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
     return () => cancelAnimationFrame(raf);
   }, []);
   const lastScenePromptRef = useRef<string>("");
-  const turnFlagsRef = useRef({ hadRenderScene: false, hadChoices: false });
+  const turnFlagsRef = useRef({
+    hadRenderScene: false,
+    hadChoices: false,
+    hadSpeakAs: false,
+  });
   const lastPlayerTextRef = useRef("");
   // choices are buffered until the narrator finishes the turn — no mid-speech
   // option swaps on screen
@@ -589,6 +594,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
             break;
           }
           case "speak_as": {
+            turnFlagsRef.current.hadSpeakAs = true;
             respond(fc.id, fc.name, { ok: true });
             const data = dataRef.current;
             const who = String(args.character_name ?? "").trim();
@@ -607,19 +613,16 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
               for (const ch of who) h = (h * 31 + ch.charCodeAt(0)) | 0;
               voiceName = CHARACTER_VOICE_POOL[Math.abs(h) % CHARACTER_VOICE_POOL.length];
             }
-            const clip = fetch("/api/tts", {
-              method: "POST",
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify({
-                text: line,
+            if (queueRef.current) {
+              // sentence-split, parallel streamed synthesis — first words in ~2s
+              speakLine(
+                queueRef.current,
+                who,
+                line,
                 voiceName,
-                style: String(args.delivery ?? "in character"),
-              }),
-            })
-              .then((r) => (r.ok ? r.json() : null))
-              .then((d: { pcmBase64?: string } | null) => d?.pcmBase64 ?? null)
-              .catch(() => null);
-            queueRef.current?.pushTts(who, line, clip);
+                String(args.delivery ?? "in character"),
+              );
+            }
             break;
           }
           case "show_ui": {
@@ -669,7 +672,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
   const runDirectorPass = useCallback(
     async (turnText: string) => {
       const flags = { ...turnFlagsRef.current };
-      turnFlagsRef.current = { hadRenderScene: false, hadChoices: false };
+      turnFlagsRef.current = { hadRenderScene: false, hadChoices: false, hadSpeakAs: false };
       if (!turnText || turnText.length < 40) return; // skip trivial turns
       try {
         const res = await fetch("/api/director", {
@@ -682,6 +685,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
             state: stateRef.current,
             hadRenderScene: flags.hadRenderScene,
             hadChoices: flags.hadChoices,
+            hadSpeakAs: flags.hadSpeakAs,
           }),
         });
         if (!res.ok) return;
@@ -692,12 +696,28 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
           socialPatch: NarratorPatch | null;
           spokeSuggestions?: boolean;
           trueMood?: string | null;
+          missedDialogue?: string | null;
         };
         // the score follows the real emotional beat, even when the narrator
         // didn't call render_scene this turn
         if (v.trueMood) {
           setMood(v.trueMood as Mood);
           void mixerRef.current?.play(v.trueMood);
+        }
+        if (v.missedDialogue) {
+          sessionRef.current?.sendClientContent({
+            turns: [
+              {
+                role: "user",
+                parts: [
+                  {
+                    text: `[STYLE] ${v.missedDialogue} ${v.missedDialogue.includes(",") ? "are" : "is"} present but silent — give them spoken lines through your dialogue machinery in the next scene. Scenes breathe through conversation.`,
+                  },
+                ],
+              },
+            ],
+            turnComplete: false,
+          });
         }
         if (v.spokeSuggestions) {
           sessionRef.current?.sendClientContent({
@@ -1066,19 +1086,13 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
           for (const ch of me.name) h = (h * 31 + ch.charCodeAt(0)) | 0;
           voiceName = CHARACTER_VOICE_POOL[Math.abs(h) % CHARACTER_VOICE_POOL.length];
         }
-        const clip = fetch("/api/tts", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            text: spoken,
-            voiceName,
-            style: "resolute, first person, in the moment",
-          }),
-        })
-          .then((r) => (r.ok ? r.json() : null))
-          .then((d: { pcmBase64?: string } | null) => d?.pcmBase64 ?? null)
-          .catch(() => null);
-        queueRef.current.pushTts(me.name, spoken, clip);
+        speakLine(
+          queueRef.current,
+          me.name,
+          spoken,
+          voiceName,
+          "resolute, first person, in the moment",
+        );
       }
     }
 

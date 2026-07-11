@@ -6,6 +6,7 @@ import { z } from "zod";
 import { genai, withTiming } from "@/lib/gemini";
 import { MODELS } from "@/lib/models";
 import { CHARACTER_VOICE_POOL, type StoryOutline } from "./types";
+import { vetOutline } from "./vetOutline";
 
 // Locked base art style. Every generated outline's artStyle must start with
 // this exact string; the generator may append a short per-story palette phrase.
@@ -54,6 +55,7 @@ const LENIENT: SchemaKnobs = {
 function makeOutlineSchema(k: SchemaKnobs) {
   const beatZ = z.object({
     id: z.string().min(1),
+    label: z.string().min(1).optional(),
     summary: z.string().min(1),
     sceneHint: z.string().min(1),
     choiceHints: z.array(z.string().min(1)).min(k.minChoiceHints),
@@ -139,6 +141,10 @@ const beatG: Schema = {
   type: Type.OBJECT,
   properties: {
     id: { type: Type.STRING, description: "Short unique slug, e.g. 'a1_docks'." },
+    label: {
+      type: Type.STRING,
+      description: "2-4 word evocative beat title, e.g. 'The Red Bridge'",
+    },
     summary: { type: Type.STRING, description: "What happens in this beat, 1-2 sentences." },
     sceneHint: {
       type: Type.STRING,
@@ -156,8 +162,8 @@ const beatG: Schema = {
       description: "1-3 beat ids (or ending ids from a final-act beat) this beat can flow into.",
     },
   },
-  required: ["id", "summary", "sceneHint", "choiceHints", "leadsTo"],
-  propertyOrdering: ["id", "summary", "sceneHint", "choiceHints", "qte", "leadsTo"],
+  required: ["id", "label", "summary", "sceneHint", "choiceHints", "leadsTo"],
+  propertyOrdering: ["id", "label", "summary", "sceneHint", "choiceHints", "qte", "leadsTo"],
 };
 
 const outlineG: Schema = {
@@ -288,7 +294,18 @@ export async function generateOutline(
       if (!outline.artStyle.startsWith(BASE_ART_STYLE)) {
         outline.artStyle = `${BASE_ART_STYLE}, ${outline.artStyle}`;
       }
-      return outline;
+
+      // Editorial vetting pass (labels + self-explanatory choices). Never sinks
+      // generation: on any vet failure, ship the unvetted outline.
+      try {
+        return await vetOutline(outline);
+      } catch (err) {
+        console.warn(
+          "[outline] vetting failed, returning unvetted outline:",
+          err instanceof Error ? err.message : err,
+        );
+        return outline;
+      }
     } catch (err) {
       lastError = err;
       console.warn(`[outline] attempt ${attempt} failed:`, err instanceof Error ? err.message : err);

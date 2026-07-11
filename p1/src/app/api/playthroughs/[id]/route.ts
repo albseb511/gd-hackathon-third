@@ -33,6 +33,7 @@ export async function GET(
     const firstBeatId = outline.acts[0].beats[0].id;
     return NextResponse.json({
       playthrough: { id, state: initialPlayState(firstBeatId), summary: null },
+      storyId: key,
       outline,
       scenes: [],
       characters: [DEFAULT_CHARACTER],
@@ -78,20 +79,26 @@ export async function GET(
 
   // participants' character sheets; sheet jsonb holds everything but the name
   const charRows = await db
-    .select({ name: characters.name, sheet: characters.sheet })
+    .select({
+      name: characters.name,
+      sheet: characters.sheet,
+      portraitAssetId: characters.portraitAssetId,
+    })
     .from(participants)
     .innerJoin(characters, eq(characters.id, participants.characterId))
     .where(eq(participants.playthroughId, id));
 
-  const sheets: CharacterSheet[] = charRows.map((row) => {
-    const sheet = (row.sheet ?? {}) as Partial<CharacterSheet>;
-    return {
-      name: row.name,
-      visualTokens: sheet.visualTokens ?? DEFAULT_CHARACTER.visualTokens,
-      personalityHints: sheet.personalityHints ?? DEFAULT_CHARACTER.personalityHints,
-      stats: sheet.stats ?? DEFAULT_CHARACTER.stats,
-    };
-  });
+  const sheets: (CharacterSheet & { portraitAssetId?: string | null })[] =
+    charRows.map((row) => {
+      const sheet = (row.sheet ?? {}) as Partial<CharacterSheet>;
+      return {
+        name: row.name,
+        visualTokens: sheet.visualTokens ?? DEFAULT_CHARACTER.visualTokens,
+        personalityHints: sheet.personalityHints ?? DEFAULT_CHARACTER.personalityHints,
+        stats: sheet.stats ?? DEFAULT_CHARACTER.stats,
+        portraitAssetId: row.portraitAssetId,
+      };
+    });
 
   return NextResponse.json({
     playthrough: {
@@ -99,6 +106,7 @@ export async function GET(
       state: playthrough.state,
       summary: playthrough.summary,
     },
+    storyId: playthrough.storyId,
     outline: story?.outline ?? null,
     scenes: recentScenes,
     characters: sheets.length ? sheets : [DEFAULT_CHARACTER],

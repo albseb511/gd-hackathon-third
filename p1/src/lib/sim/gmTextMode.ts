@@ -52,7 +52,7 @@ export class GmTextSession {
   constructor(opts: NarratorPromptOpts) {
     // `behavior: NON_BLOCKING` is a Live-API-only field; strip it for
     // generateContent-based chats.
-    const declarations = narratorTools.map(({ behavior: _behavior, ...d }) => d);
+    const declarations = narratorTools.map((t) => { const d = { ...t }; delete d.behavior; return d; });
     this.chat = genai().chats.create({
       model: MODELS.text,
       config: {

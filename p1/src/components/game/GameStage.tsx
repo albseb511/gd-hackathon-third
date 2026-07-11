@@ -14,9 +14,13 @@ import {
   Session,
 } from "@google/genai";
 import { useLiveAudio } from "@/components/audio/useLiveAudio";
+import { MusicMixer, bankForGenre } from "@/components/audio/mixer";
 import SceneCanvas from "@/components/game/SceneCanvas";
 import ChoiceBar from "@/components/game/ChoiceBar";
 import DiceRoll from "@/components/game/DiceRoll";
+import ChapterRecap from "@/components/analytics/ChapterRecap";
+import UIRenderer from "@/components/genui/UIRenderer";
+import ArtifactFrame from "@/components/genui/ArtifactFrame";
 import Mash from "@/components/game/qte/Mash";
 import TimedTap from "@/components/game/qte/TimedTap";
 import Sequence from "@/components/game/qte/Sequence";
@@ -52,10 +56,15 @@ type Ending = { endingId: string; epilogue: string };
 
 interface PlaythroughData {
   playthrough: { id: string; state: PlayState; summary: string | null };
+  storyId: string;
   outline: StoryOutline;
   scenes: { narration: string | null; imageAssetId: string | null; idx: number }[];
-  characters: CharacterSheet[];
+  characters: (CharacterSheet & { portraitAssetId?: string | null })[];
 }
+
+type GenUiPanel =
+  | { kind: "artifact_html"; html: string }
+  | { kind: string; spec: unknown };
 
 export default function GameStage({ playthroughId }: { playthroughId: string }) {
   const audio = useLiveAudio();
@@ -74,6 +83,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
   const speechEndMarkRef = useRef(0);
   const captionRef = useRef("");
   const connectRef = useRef<(resume: boolean) => Promise<Session>>(null!);
+  const mixerRef = useRef<MusicMixer | null>(null);
   const lastScenePromptRef = useRef<string>("");
   const turnFlagsRef = useRef({ hadRenderScene: false, hadChoices: false });
   const lastPlayerTextRef = useRef("");
@@ -95,6 +105,8 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
   const [qte, setQte] = useState<QteConfig | null>(null);
   const [dice, setDice] = useState<DiceConfig | null>(null);
   const [ending, setEnding] = useState<Ending | null>(null);
+  const [showRecap, setShowRecap] = useState(false);
+  const [genUi, setGenUi] = useState<GenUiPanel | null>(null);
 
   // ---- load playthrough ----
   useEffect(() => {
@@ -159,6 +171,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
       const t0 = performance.now();
       setGenerating(true);
       setMood((args.mood as Mood) ?? "explore");
+      void mixerRef.current?.play((args.mood as Mood) ?? "explore");
       const data = dataRef.current!;
       try {
         const res = await fetch("/api/scene-image", {
@@ -171,6 +184,10 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
             shot: args.shot ?? "new",
             previousAssetId:
               args.shot === "edit" ? lastAssetIdRef.current : undefined,
+            // protagonist consistency: portrait rides along as reference
+            referenceAssetIds: data.characters
+              .map((c) => c.portraitAssetId)
+              .filter((x): x is string => Boolean(x)),
             playthroughId,
           }),
         });
@@ -239,6 +256,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
             break;
           }
           case "start_qte":
+            void mixerRef.current?.play("combat");
             setQte({
               id: fc.id!,
               name: fc.name!,
@@ -271,10 +289,29 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
             }
             break;
           }
-          case "show_ui":
-            // M3 wires the UI-Smith; acknowledge so narration continues
-            respond(fc.id, fc.name, { ok: true, note: "ui coming soon" });
+          case "show_ui": {
+            respond(fc.id, fc.name, { ok: true });
+            void fetch("/api/gen-ui", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                kind: args.kind,
+                context: args.context,
+                playthroughId,
+              }),
+            })
+              .then((r) => (r.ok ? r.json() : null))
+              .then((panel: GenUiPanel | null) => {
+                if (panel) {
+                  setGenUi(panel);
+                  persistBeat({
+                    scene: { idx: Math.max(0, sceneIdxRef.current - 1), genUi: panel },
+                  });
+                }
+              })
+              .catch(() => {});
             break;
+          }
           case "end_story":
             respond(fc.id, fc.name, { ok: true });
             setEnding({
@@ -451,6 +488,13 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
   const begin = useCallback(async () => {
     setPhase("connecting");
     try {
+      // music mixer must start inside the user gesture (iOS autoplay rules)
+      if (!mixerRef.current && dataRef.current) {
+        mixerRef.current = new MusicMixer(bankForGenre(dataRef.current.outline.genre));
+        mixerRef.current.start();
+        audio.setDuckHandler((speaking) => mixerRef.current?.setSpeaking(speaking));
+        void mixerRef.current.play("intro");
+      }
       const resume = sceneIdxRef.current > 0;
       const session = await connect(resume);
       await audio.startMic((chunk) => {
@@ -485,6 +529,8 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
       closingRef.current = false;
       sessionRef.current?.close();
       audio.stop();
+      mixerRef.current?.dispose();
+      mixerRef.current = null;
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
@@ -600,9 +646,17 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
             />
           ))}
         </div>
-        <div className="flex items-center gap-2 bg-black/40 rounded-full px-3 py-1.5 backdrop-blur text-zinc-300">
-          <span className={`w-2 h-2 rounded-full ${audio.speaking ? "bg-emerald-400 animate-pulse" : "bg-zinc-600"}`} />
-          {audio.speaking ? "narrator" : "listening"}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowRecap(true)}
+            className="bg-black/40 rounded-full px-3 py-1.5 backdrop-blur text-zinc-300 hover:text-amber-300"
+          >
+            ◈ map
+          </button>
+          <div className="flex items-center gap-2 bg-black/40 rounded-full px-3 py-1.5 backdrop-blur text-zinc-300">
+            <span className={`w-2 h-2 rounded-full ${audio.speaking ? "bg-emerald-400 animate-pulse" : "bg-zinc-600"}`} />
+            {audio.speaking ? "narrator" : "listening"}
+          </div>
         </div>
       </div>
 
@@ -646,10 +700,38 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
           >
             {ending.epilogue}
           </p>
-          <Link href="/" className="mt-10 text-zinc-400 underline hover:text-zinc-200">
+          <button
+            onClick={() => setShowRecap(true)}
+            className="mt-8 rounded-full border border-amber-500/60 text-amber-300 px-6 py-3 hover:bg-amber-500/10"
+          >
+            ◈ see your journey
+          </button>
+          <Link href="/" className="mt-4 text-zinc-400 underline hover:text-zinc-200">
             tell another story
           </Link>
         </div>
+      )}
+
+      {genUi &&
+        (genUi.kind === "artifact_html" ? (
+          <ArtifactFrame
+            html={(genUi as { html: string }).html}
+            onClose={() => setGenUi(null)}
+          />
+        ) : (
+          <UIRenderer
+            kind={genUi.kind}
+            spec={(genUi as { spec: unknown }).spec}
+            onClose={() => setGenUi(null)}
+          />
+        ))}
+
+      {showRecap && data && (
+        <ChapterRecap
+          storyKey={data.storyId}
+          playthroughId={playthroughId}
+          onClose={() => setShowRecap(false)}
+        />
       )}
     </div>
   );

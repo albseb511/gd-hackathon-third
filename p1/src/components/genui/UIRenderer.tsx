@@ -4,7 +4,7 @@
 // on desktop, bottom sheet on mobile. Zod-validates the spec on the way in
 // and degrades to an elegant fallback card when the payload is malformed.
 
-import { uiSpecSchema, type UiSpec } from "@/lib/uiSmith";
+import { uiSpecSchema, type UiSpec } from "@/lib/uiSpec";
 import "@/components/game/overlays.css";
 import "./genui.css";
 

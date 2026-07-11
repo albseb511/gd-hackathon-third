@@ -136,7 +136,8 @@ export default function Home() {
         setStarting(null);
         return;
       }
-      router.push(`/play/${data.playthroughId}`);
+      // new stories go through character creation first
+      router.push(`/character?pt=${data.playthroughId}`);
     } catch {
       setError("Could not reach the storyteller. Try again.");
       setStarting(null);

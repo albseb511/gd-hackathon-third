@@ -14,8 +14,11 @@ import {
   Session,
 } from "@google/genai";
 import { useLiveAudio } from "@/components/audio/useLiveAudio";
+import { PresentationQueue, SpeakerInfo } from "@/components/audio/presentationQueue";
+import MicPicker from "@/components/audio/MicPicker";
 import { MusicMixer, bankForGenre } from "@/components/audio/mixer";
 import { playSfx } from "@/components/audio/sfx";
+import { CHARACTER_VOICE_POOL } from "@/lib/storyEngine/types";
 import SceneCanvas from "@/components/game/SceneCanvas";
 import ChoiceBar from "@/components/game/ChoiceBar";
 import DiceRoll from "@/components/game/DiceRoll";
@@ -85,6 +88,18 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
   const captionRef = useRef("");
   const connectRef = useRef<(resume: boolean) => Promise<Session>>(null!);
   const mixerRef = useRef<MusicMixer | null>(null);
+  // the presentation semaphore — one ordered pipeline for all output audio
+  const queueRef = useRef<PresentationQueue | null>(null);
+  const inputEpochRef = useRef(0); // bumps on player input; stale reveals abort
+  const [narratorSpeaking, setNarratorSpeaking] = useState(false);
+  const [speakerInfo, setSpeakerInfo] = useState<SpeakerInfo | null>(null);
+  const [micDevice, setMicDevice] = useState<string | null>(null);
+  useEffect(() => {
+    const raf = requestAnimationFrame(() =>
+      setMicDevice(localStorage.getItem("vb-mic-device")),
+    );
+    return () => cancelAnimationFrame(raf);
+  }, []);
   const lastScenePromptRef = useRef<string>("");
   const turnFlagsRef = useRef({ hadRenderScene: false, hadChoices: false });
   const lastPlayerTextRef = useRef("");
@@ -200,8 +215,12 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
       response: Record<string, unknown>,
       scheduling: FunctionResponseScheduling = FunctionResponseScheduling.SILENT,
     ) => {
+      // scheduling is a TOP-LEVEL FunctionResponse field. Burying it inside
+      // `response` silently reverts every ack to WHEN_IDLE, which re-triggers
+      // model generation — the root cause of the narrator talking over
+      // freshly presented choices and "continuing on its own".
       sessionRef.current?.sendToolResponse({
-        functionResponses: [{ id, name, response: { ...response, scheduling } }],
+        functionResponses: [{ id, name, response, scheduling }],
       });
     },
     [],
@@ -261,14 +280,14 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
     }
   }, [generateQuiet]);
 
-  // release the opening audio gate: flush anything queued and play live after
+  // release the opening audio gate: flush anything queued into the pipeline
   const releaseAudioGate = useCallback(() => {
     const gate = audioGateRef.current;
     if (!gate.active) return;
     gate.active = false;
-    for (const chunk of gate.queue) audio.playChunk(chunk);
+    for (const chunk of gate.queue) queueRef.current?.pushLive(chunk);
     gate.queue = [];
-  }, [audio]);
+  }, []);
 
   // ---- tool executors ----
   const execRenderScene = useCallback(
@@ -504,6 +523,40 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
             }
             break;
           }
+          case "speak_as": {
+            respond(fc.id, fc.name, { ok: true });
+            const data = dataRef.current;
+            const who = String(args.character_name ?? "").trim();
+            const line = String(args.line ?? "").trim();
+            if (!line) break;
+            // resolve the character's stored voice; hash-fallback keeps even
+            // unknown walk-ons consistent within a story
+            const norm = (s: string) => s.toLowerCase().trim();
+            const fromOutline = data?.outline.characters.find(
+              (c) => norm(c.name) === norm(who) || norm(c.name).includes(norm(who)),
+            );
+            const fromPlayers = data?.characters.find((c) => norm(c.name) === norm(who));
+            let voiceName = fromOutline?.voiceName ?? fromPlayers?.voiceName;
+            if (!voiceName) {
+              let h = 0;
+              for (const ch of who) h = (h * 31 + ch.charCodeAt(0)) | 0;
+              voiceName = CHARACTER_VOICE_POOL[Math.abs(h) % CHARACTER_VOICE_POOL.length];
+            }
+            const clip = fetch("/api/tts", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                text: line,
+                voiceName,
+                style: String(args.delivery ?? "in character"),
+              }),
+            })
+              .then((r) => (r.ok ? r.json() : null))
+              .then((d: { pcmBase64?: string } | null) => d?.pcmBase64 ?? null)
+              .catch(() => null);
+            queueRef.current?.pushTts(who, line, clip);
+            break;
+          }
           case "show_ui": {
             respond(fc.id, fc.name, { ok: true });
             void fetch("/api/gen-ui", {
@@ -661,7 +714,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
           onmessage: (m: LiveServerMessage) => {
             const sc = m.serverContent;
             if (sc?.interrupted) {
-              audio.flushPlayback();
+              queueRef.current?.flush();
               audioGateRef.current.queue = [];
             }
             const part = sc?.modelTurn?.parts?.find((p) => p.inlineData?.data);
@@ -682,7 +735,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
                 // opening: hold voice until the first scene image is up
                 gate.queue.push(part.inlineData.data);
               } else {
-                audio.playChunk(part.inlineData.data);
+                queueRef.current?.pushLive(part.inlineData.data);
               }
               lastActivityRef.current = Date.now();
               nudgedRef.current = false;
@@ -709,11 +762,12 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
               const recentOut = (captionRef.current + " " + lastNarrationRef.current).toLowerCase();
               const words = heard.toLowerCase().split(/\s+/).filter((w) => w.length > 3);
               const isEcho =
-                words.length >= 3 &&
-                words.filter((w) => recentOut.includes(w)).length / words.length > 0.8;
+                words.length >= 5 &&
+                words.filter((w) => recentOut.includes(w)).length / words.length >= 0.9;
               if (!isEcho) {
                 // player spoke: clear stale choices, mark for latency,
                 // accumulate for the director's social read + provisional frame
+                inputEpochRef.current++;
                 lastActivityRef.current = Date.now();
                 nudgedRef.current = false;
                 speechEndMarkRef.current = performance.now();
@@ -738,10 +792,17 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
                 captionTimerRef.current = null;
               }
               setCaption(narration); // final full text, stable
-              // reveal the buffered choices now that the narrator is done
+              // reveal buffered choices ONLY once every queued clip has
+              // finished playing — and only if the player hasn't already acted
               if (pendingChoicesRef.current) {
-                setChoices(pendingChoicesRef.current);
+                const options = pendingChoicesRef.current;
                 pendingChoicesRef.current = null;
+                const epoch = inputEpochRef.current;
+                void (queueRef.current?.waitForDrain() ?? Promise.resolve()).then(() => {
+                  if (inputEpochRef.current === epoch) {
+                    setChoices((cur) => (cur.length ? cur : options));
+                  }
+                });
               }
               releaseAudioGate(); // safety: never gate past the first turn
               utteranceRef.current = "";
@@ -773,7 +834,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
       sessionRef.current = session;
       return session;
     },
-    [playthroughId, audio, handleToolCall, persistBeat, runDirectorPass, releaseAudioGate, fireProvisionalFrame, prefetchNextBeats],
+    [playthroughId, handleToolCall, persistBeat, runDirectorPass, releaseAudioGate, fireProvisionalFrame, prefetchNextBeats],
   );
   useEffect(() => {
     connectRef.current = connect;
@@ -789,7 +850,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
       if (
         idleMs > 14000 &&
         !nudgedRef.current &&
-        !audio.speaking &&
+        !narratorSpeaking &&
         choices.length === 0 &&
         !qte &&
         !dice &&
@@ -811,16 +872,25 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
       }
     }, 3000);
     return () => clearInterval(timer);
-  }, [phase, audio.speaking, choices.length, qte, dice, ending]);
+  }, [phase, narratorSpeaking, choices.length, qte, dice, ending]);
 
   const begin = useCallback(async () => {
     setPhase("connecting");
     try {
-      // music mixer must start inside the user gesture (iOS autoplay rules)
+      // audio graph must start inside the user gesture (iOS autoplay rules)
+      if (!queueRef.current) {
+        const q = new PresentationQueue();
+        q.ensureCtx();
+        q.onSpeaking = (s) => {
+          setNarratorSpeaking(s);
+          mixerRef.current?.setSpeaking(s);
+        };
+        q.onSpeaker = setSpeakerInfo;
+        queueRef.current = q;
+      }
       if (!mixerRef.current && dataRef.current) {
         mixerRef.current = new MusicMixer(bankForGenre(dataRef.current.outline.genre));
         mixerRef.current.start();
-        audio.setDuckHandler((speaking) => mixerRef.current?.setSpeaking(speaking));
         void mixerRef.current.play("intro");
       }
       const resume = sceneIdxRef.current > 0;
@@ -833,8 +903,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
         sessionRef.current?.sendRealtimeInput({
           audio: { data: chunk, mimeType: "audio/pcm;rate=16000" },
         });
-      });
-      audio.ensureOutCtx();
+      }, micDevice);
       setPhase("live");
       session.sendClientContent({
         turns: [
@@ -854,13 +923,15 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
       setErrorMsg(e instanceof Error ? e.message : String(e));
       setPhase("error");
     }
-  }, [connect, audio, releaseAudioGate]);
+  }, [connect, audio, releaseAudioGate, micDevice]);
 
   useEffect(
     () => () => {
       closingRef.current = false;
       sessionRef.current?.close();
       audio.stop();
+      queueRef.current?.dispose();
+      queueRef.current = null;
       mixerRef.current?.dispose();
       mixerRef.current = null;
     },
@@ -870,6 +941,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
 
   // ---- player inputs ----
   const sendText = useCallback((text: string) => {
+    inputEpochRef.current++;
     lastActivityRef.current = Date.now();
     nudgedRef.current = false;
     speechEndMarkRef.current = performance.now();
@@ -968,14 +1040,33 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
               ? "▶ Continue the story"
               : "▶ Begin the story"}
         </button>
-        <p className="text-zinc-600 text-xs mt-4">uses your microphone — speak anytime, even to interrupt</p>
+        <p className="text-zinc-600 text-xs mt-4 mb-5">uses your microphone — speak anytime, even to interrupt</p>
+        <div className="w-full max-w-sm">
+          <MicPicker
+            value={micDevice}
+            level={audio.micLevel}
+            onChange={(id) => {
+              const device = id || null; // "" = system default
+              setMicDevice(device);
+              if (device) localStorage.setItem("vb-mic-device", device);
+              else localStorage.removeItem("vb-mic-device");
+              void audio.switchDevice(device);
+            }}
+          />
+        </div>
       </Shell>
     );
   }
 
   return (
     <div className="fixed inset-0 bg-black overflow-hidden">
-      <SceneCanvas imageUrl={imageUrl} caption={caption} mood={mood} generating={generating} />
+      <SceneCanvas
+        imageUrl={imageUrl}
+        caption={speakerInfo?.line ? `“${speakerInfo.line}”` : caption}
+        speaker={speakerInfo?.speaker ?? null}
+        mood={mood}
+        generating={generating}
+      />
 
       {/* HP + mic status */}
       <div className="absolute top-3 left-3 right-3 flex justify-between items-center text-xs z-20">
@@ -994,9 +1085,21 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
           >
             ◈ map
           </button>
+          <MicPicker
+            compact
+            value={micDevice}
+            level={audio.micLevel}
+            onChange={(id) => {
+              const device = id || null; // "" = system default
+              setMicDevice(device);
+              if (device) localStorage.setItem("vb-mic-device", device);
+              else localStorage.removeItem("vb-mic-device");
+              void audio.switchDevice(device);
+            }}
+          />
           <div className="flex items-center gap-2 bg-black/40 rounded-full px-3 py-1.5 backdrop-blur text-zinc-300">
-            <span className={`w-2 h-2 rounded-full ${audio.speaking ? "bg-emerald-400 animate-pulse" : "bg-zinc-600"}`} />
-            {audio.speaking ? "narrator" : "listening"}
+            <span className={`w-2 h-2 rounded-full ${narratorSpeaking ? "bg-emerald-400 animate-pulse" : "bg-zinc-600"}`} />
+            {speakerInfo ? speakerInfo.speaker : narratorSpeaking ? "narrator" : "listening"}
           </div>
         </div>
       </div>
@@ -1005,10 +1108,10 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
           text + mic affordance whenever the stage is otherwise idle */}
       <ChoiceBar
         options={choices}
-        visible={!qte && !dice && !ending && (choices.length > 0 || !audio.speaking)}
+        visible={!qte && !dice && !ending && (choices.length > 0 || !narratorSpeaking)}
         onChoose={onChoose}
         onFreeText={sendText}
-        listening={audio.micActive && !audio.speaking}
+        listening={audio.micActive && !narratorSpeaking}
       />
 
       {qte?.type === "mash" && (

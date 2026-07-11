@@ -9,6 +9,7 @@ export const TOOL_NAMES = {
   startQte: "start_qte",
   skillCheck: "skill_check",
   showUi: "show_ui",
+  speakAs: "speak_as",
   updateState: "update_state",
   endStory: "end_story",
 } as const;
@@ -116,6 +117,30 @@ export const narratorTools: FunctionDeclaration[] = [
         },
       },
       required: ["kind", "context"],
+    },
+  },
+  {
+    name: TOOL_NAMES.speakAs,
+    behavior: Behavior.NON_BLOCKING,
+    description:
+      "Speak ONE line of dialogue AS a named character, in their own real voice. EVERY line of character dialogue MUST go through this tool — you never voice characters yourself. Call it mid-narration wherever the line lands; keep narrating around it.",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        character_name: {
+          type: Type.STRING,
+          description: "Exact name of the cast member speaking, as listed in THE CAST.",
+        },
+        line: {
+          type: Type.STRING,
+          description: "The exact words spoken, under 25 words.",
+        },
+        delivery: {
+          type: Type.STRING,
+          description: "How to deliver it: emotion, pace — e.g. 'coldly, almost a whisper'.",
+        },
+      },
+      required: ["character_name", "line", "delivery"],
     },
   },
   {

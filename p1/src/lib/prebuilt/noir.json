@@ -8,19 +8,22 @@
       "name": "Maeve Vance",
       "role": "The Deceptive Client",
       "visualDescription": "Sharp, angular jawline, dark hair cut into a severe bob, wearing an expensive emerald trench coat darkened by heavy rain. Her fingers are perpetually stained with dark photographic developer ink.",
-      "voiceStyle": "Medium-low pitch delivered at a clipped, icy pace with a smoky and bone-dry texture; features a sharp Mid-Atlantic accent and a subtle, metallic throat-click before emphasizing key words."
+      "voiceStyle": "Medium-low pitch delivered at a clipped, icy pace with a smoky and bone-dry texture; features a sharp Mid-Atlantic accent and a subtle, metallic throat-click before emphasizing key words.",
+      "voiceName": "Kore"
     },
     {
       "name": "Detective Serrano",
       "role": "The Corrupt Enforcer",
       "visualDescription": "Heavy-set build, wearing a wrinkled beige suit and a faded fedora. His left eye is made of cloudy glass that doesn't track, and he smells faintly of cheap menthols and damp wool.",
-      "voiceStyle": "Low, gravelly baritone delivered at a sluggish, dragging pace with a wet, wheezing texture; features a thick, slurred Brooklyn-dockside accent and a wet, raspy nasal grunt at the end of every sentence."
+      "voiceStyle": "Low, gravelly baritone delivered at a sluggish, dragging pace with a wet, wheezing texture; features a thick, slurred Brooklyn-dockside accent and a wet, raspy nasal grunt at the end of every sentence.",
+      "voiceName": "Enceladus"
     },
     {
       "name": "The Baron",
       "role": "The Syndicate Boss",
       "visualDescription": "A lean, towering figure with a jagged scar running down his neck. He wears an oversized bright yellow fisherman's slicker over a pristine, custom-tailored tuxedo.",
-      "voiceStyle": "High, reedy tenor with an erratic pace that shifts from rapid whispers to slow drawls; has a whistling, scarred-windpipe texture, a refined Baltic lilt, and a prolonged, hissing sibilance on 'S' sounds."
+      "voiceStyle": "High, reedy tenor with an erratic pace that shifts from rapid whispers to slow drawls; has a whistling, scarred-windpipe texture, a refined Baltic lilt, and a prolonged, hissing sibilance on 'S' sounds.",
+      "voiceName": "Puck"
     }
   ],
   "acts": [

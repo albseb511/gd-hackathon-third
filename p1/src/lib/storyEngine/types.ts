@@ -2,6 +2,32 @@
 // Server (routes, sim) and client (GameStage, LiveSessionProvider) both import from here.
 
 export type QteType = "mash" | "timed" | "sequence";
+
+// TTS prebuilt voices reserved for CHARACTERS (distinct-sounding, never the
+// narrator). Each cast member gets one; dialogue lines are synthesized with it.
+export const CHARACTER_VOICE_POOL = [
+  "Puck", // upbeat male
+  "Kore", // firm female
+  "Aoede", // breezy female
+  "Leda", // youthful precise female
+  "Zephyr", // bright female
+  "Enceladus", // breathy gravel male
+  "Iapetus", // clear male
+  "Umbriel", // easy-going male
+  "Algieba", // smooth male
+  "Despina", // smooth female
+  "Erinome", // clear female
+  "Gacrux", // mature female
+  "Alnilam", // firm male
+  "Schedar", // even male
+  "Achird", // friendly male
+  "Sulafat", // warm female
+] as const;
+export type CharacterVoiceName = (typeof CHARACTER_VOICE_POOL)[number];
+
+// Live-API narrator voices (see liveConfig.voiceForGenre) — excluded from the
+// character pool so no NPC ever sounds like the narrator.
+export const NARRATOR_VOICES = ["Charon", "Fenrir", "Orus"] as const;
 export type Stat = "might" | "wit" | "charm";
 export type Mood =
   | "intro"
@@ -35,6 +61,9 @@ export interface OutlineCharacter {
   // how this character SOUNDS — the narrator performs them with this voice,
   // consistently, every time they speak
   voiceStyle?: string;
+  // TTS prebuilt voice (from CHARACTER_VOICE_POOL) used to synthesize this
+  // character's dialogue lines via speak_as
+  voiceName?: string;
 }
 
 export interface StoryOutline {
@@ -58,6 +87,7 @@ export interface CharacterSheet {
   visualTokens: string;
   personalityHints: string;
   voiceStyle?: string; // how the player character sounds when quoted
+  voiceName?: string; // TTS prebuilt voice (CHARACTER_VOICE_POOL) for quoted lines
   stats: { might: number; wit: number; charm: number }; // 1..5
 }
 

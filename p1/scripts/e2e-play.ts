@@ -3,7 +3,12 @@
 // beats (text in, audio+transcript out), executes render_scene against the
 // deployed image pipeline, persists beats, then verifies what stuck.
 // Usage: BASE_URL=https://... npx tsx scripts/e2e-play.ts
-import { GoogleGenAI, LiveServerMessage, Session } from "@google/genai";
+import {
+  FunctionResponseScheduling,
+  GoogleGenAI,
+  LiveServerMessage,
+  Session,
+} from "@google/genai";
 import {
   applyNarratorPatch,
   parseNarratorPatch,
@@ -48,6 +53,7 @@ async function main() {
   let beats = 0;
   let firstAudioMs = 0;
   let sentAt = 0;
+  const spokenLines: string[] = [];
 
   const persist = (payload: Record<string, unknown>) =>
     api("/api/beat", { playthroughId, ...payload }).catch(() => null);
@@ -88,9 +94,22 @@ async function main() {
             }
             for (const fc of m.toolCall?.functionCalls ?? []) {
               const args = (fc.args ?? {}) as Record<string, unknown>;
+              // mirror the real client: SILENT acks so the ack itself never
+              // re-triggers generation (the WHEN_IDLE default does)
               session.sendToolResponse({
-                functionResponses: [{ id: fc.id, name: fc.name, response: { ok: true } }],
+                functionResponses: [
+                  {
+                    id: fc.id,
+                    name: fc.name,
+                    response: { ok: true },
+                    scheduling: FunctionResponseScheduling.SILENT,
+                  },
+                ],
               });
+              if (fc.name === "speak_as") {
+                spokenLines.push(`${args.character_name}: ${args.line}`);
+                console.log(`  [speak_as] ${args.character_name}: "${String(args.line).slice(0, 60)}"`);
+              }
               if (fc.name === "render_scene") {
                 if (typeof args.beat_id === "string") {
                   playState = applyNarratorPatch(playState, {}, args.beat_id);
@@ -165,6 +184,7 @@ async function main() {
   console.log(`persisted scenes: ${state.scenes.length}, with images: ${state.scenes.filter((s) => s.imageAssetId).length}`);
   console.log(`path: ${state.playthrough.state.path?.join(" → ")}`);
   console.log(`transcript sample: ${transcript.trim().slice(0, 140)}`);
+  console.log(`character lines via speak_as: ${spokenLines.length}`);
   if (!images || !state.scenes.some((s) => s.narration)) throw new Error("e2e incomplete");
   console.log("E2E PASS");
   process.exit(0);

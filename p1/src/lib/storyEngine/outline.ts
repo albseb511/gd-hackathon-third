@@ -5,7 +5,7 @@ import { Type, type Schema } from "@google/genai";
 import { z } from "zod";
 import { genai, withTiming } from "@/lib/gemini";
 import { MODELS } from "@/lib/models";
-import type { StoryOutline } from "./types";
+import { CHARACTER_VOICE_POOL, type StoryOutline } from "./types";
 
 // Locked base art style. Every generated outline's artStyle must start with
 // this exact string; the generator may append a short per-story palette phrase.
@@ -89,6 +89,7 @@ function makeOutlineSchema(k: SchemaKnobs) {
             role: z.string().min(1),
             visualDescription: z.string().min(1),
             voiceStyle: z.string().optional(),
+            voiceName: z.string().optional(),
           }),
         )
         .min(k.minChars)
@@ -184,8 +185,14 @@ const outlineG: Schema = {
             description:
               "How they SOUND, performable by a voice actor: pitch, pace, texture, accent flavor, one verbal tic. E.g. 'low gravel, slow, ex-smoker rasp, drops the ends of sentences'.",
           },
+          voiceName: {
+            type: Type.STRING,
+            enum: [...CHARACTER_VOICE_POOL],
+            description:
+              "The prebuilt TTS voice that best matches this character's voiceStyle. Every character in the story must get a DIFFERENT voiceName.",
+          },
         },
-        required: ["name", "role", "visualDescription", "voiceStyle"],
+        required: ["name", "role", "visualDescription", "voiceStyle", "voiceName"],
       },
     },
     acts: {
@@ -235,6 +242,7 @@ Return JSON matching the response schema. Requirements:
 - title, genre, and a 1-2 sentence logline with a hook.
 - artStyle: MUST begin with EXACTLY this string: "${BASE_ART_STYLE}". You may append a comma and a short palette phrase drawn from the premise (e.g. ", rain-slick neon noir palette"). Nothing else.
 - characters: 3-5 vivid NPCs (never the player). visualDescription must be usable directly by an image model: face, build, wardrobe, one unforgettable detail. voiceStyle must be performable by a voice actor: pitch, pace, texture, accent flavor, one verbal tic — make each voice unmistakably distinct from the others.
+- voiceName: assign each character a DIFFERENT prebuilt voice from the allowed list, the one that best matches their voiceStyle (gender, age, texture). No two characters may share a voiceName.
 - acts: exactly 3 (setup / escalation / climax), each with a goal and 4-6 beats.
 - Beat ids: short unique slugs like "a1_docks". Every leadsTo, winBeat, and loseBeat MUST reference an existing beat id (or an ending id, only from act-3 beats).
 - BRANCHING: at least 4 beats must lead to 2-3 DIFFERENT places (leadsTo with 2-3 ids). The story must feel like a web, not a corridor.

@@ -7,11 +7,14 @@
 import { useCallback, useRef, useState } from "react";
 import { GoogleGenAI, Session, LiveServerMessage } from "@google/genai";
 import { useLiveAudio } from "@/components/audio/useLiveAudio";
+import { PresentationQueue } from "@/components/audio/presentationQueue";
 
 type LogLine = { t: string; kind: string; text: string };
 
 export default function TestLivePage() {
   const audio = useLiveAudio();
+  const queueRef = useRef<PresentationQueue | null>(null);
+  const [speaking, setSpeaking] = useState(false);
   const sessionRef = useRef<Session | null>(null);
   const [status, setStatus] = useState<"idle" | "connecting" | "live" | "error">("idle");
   const [log, setLog] = useState<LogLine[]>([]);
@@ -27,7 +30,7 @@ export default function TestLivePage() {
     (msg: LiveServerMessage) => {
       const sc = msg.serverContent;
       if (sc?.interrupted) {
-        audio.flushPlayback();
+        queueRef.current?.flush();
         addLog("interrupt", "⚡ barge-in — playback flushed");
       }
       const audioPart = sc?.modelTurn?.parts?.find((p) => p.inlineData?.data);
@@ -36,7 +39,7 @@ export default function TestLivePage() {
           gotFirstAudio.current = true;
           setFirstAudioMs(Math.round(performance.now() - connectT0.current));
         }
-        audio.playChunk(audioPart.inlineData.data);
+        queueRef.current?.pushLive(audioPart.inlineData.data);
       }
       if (sc?.outputTranscription?.text) {
         addLog("narrator", sc.outputTranscription.text);
@@ -62,11 +65,17 @@ export default function TestLivePage() {
         addLog("goAway", `server closing in ${msg.goAway.timeLeft ?? "?"}`);
       }
     },
-    [audio, addLog],
+    [addLog],
   );
 
   const start = useCallback(async () => {
     setStatus("connecting");
+    if (!queueRef.current) {
+      const q = new PresentationQueue();
+      q.ensureCtx();
+      q.onSpeaking = setSpeaking;
+      queueRef.current = q;
+    }
     gotFirstAudio.current = false;
     setFirstAudioMs(null);
     try {
@@ -104,7 +113,7 @@ export default function TestLivePage() {
           audio: { data: chunk, mimeType: "audio/pcm;rate=16000" },
         });
       });
-      audio.ensureOutCtx();
+
       setStatus("live");
       // kick things off
       session.sendClientContent({
@@ -120,6 +129,8 @@ export default function TestLivePage() {
     sessionRef.current?.close();
     sessionRef.current = null;
     audio.stop();
+    queueRef.current?.dispose();
+    queueRef.current = null;
     setStatus("idle");
   }, [audio]);
 
@@ -143,8 +154,8 @@ export default function TestLivePage() {
             ■ stop
           </button>
         )}
-        <span className={audio.speaking ? "text-emerald-400" : "text-zinc-500"}>
-          {audio.speaking ? "● narrator speaking" : "○ silent"}
+        <span className={speaking ? "text-emerald-400" : "text-zinc-500"}>
+          {speaking ? "● narrator speaking" : "○ silent"}
         </span>
         <span className={audio.micActive ? "text-sky-400" : "text-zinc-600"}>
           {audio.micActive ? "🎙 mic live" : "mic off"}

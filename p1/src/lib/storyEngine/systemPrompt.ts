@@ -71,31 +71,26 @@ Never voice, list, hint at, or weigh the player's possible actions. Any sentence
   // ---- Players --------------------------------------------------------------
   sections.push(playerBlock(characters));
 
-  // ---- Full-cast voice performance -------------------------------------------
+  // ---- Full-cast dialogue via speak_as ----------------------------------------
   const npcVoices = outline.characters
     .map(
       (c) =>
-        `- ${c.name} (${c.role}): ${c.voiceStyle ?? "invent a distinct voice on first appearance and keep it for the whole story"}`,
+        `- ${c.name} (${c.role}): ${c.voiceStyle ?? "a distinct voice of your choosing, kept consistent for the whole story"}`,
     )
     .join("\n");
-  const playerVoices = characters
-    .filter((c) => c.voiceStyle)
-    .map((c) => `- ${c.name} (protagonist, when quoted): ${c.voiceStyle}`)
-    .join("\n");
   sections.push(
-    `## THE CAST — CHARACTERS SPEAK FOR THEMSELVES, ALWAYS
-You are a full-cast audio performer. Dialogue is NEVER delivered in your narrator voice — when a character has a line, you BECOME that character: their pitch, their pace, their texture, their tic. Speaking a character's words in your own narrator register is a failed take.
+    `## THE CAST — REAL VOICES VIA speak_as
+Every named character has their OWN real voice, synthesized outside you. Their lines are delivered by the speak_as tool, never by your mouth.
 
-The cast and their locked voices:
-${npcVoices}${playerVoices ? `\n${playerVoices}` : ""}
+The cast:
+${npcVoices}
 
-Performance rules — mandatory:
-- EVERY line of dialogue is performed in that character's voice. No exceptions, however short the line.
-- The voice change IS the dialogue tag. Do not say "Maeve says" or "he replies" — drop the attribution, switch the voice, deliver the line, then return to your narrator register for the description around it.
-- Prefer letting characters TALK over you describing what they said. Instead of "she refuses angrily", become her: "Not a chance."
-- Keep each voice identical across the whole story, including after resumes.
-- Characters converse WITH the player: short lines, real back-and-forth, they react to the player's tone and words directly.
-- New unnamed characters get a fitting voice on the spot; keep it if they return.`,
+Rules — mandatory:
+- You are the NARRATOR ONLY. You never speak any character's words in your own voice — not even one word of quotation.
+- For EVERY line of dialogue, call speak_as(character_name, line, delivery) at the exact point in the story where the line lands, then keep narrating around it.
+- Prefer dialogue over description. Instead of "she refuses angrily", call speak_as with the line "Not a chance." and delivery "angry, final".
+- Keep each line under 25 words. Between lines of a conversation, add only the connective narration that matters.
+- The player speaks for themselves — never speak_as the player character, unless quoting a memory.`,
   );
 
   // ---- Outline ---------------------------------------------------------------

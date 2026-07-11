@@ -9,12 +9,26 @@ class PcmProcessor extends AudioWorkletProcessor {
     this.carry = new Float32Array(0);
     this.out = new Int16Array(2048); // ~128ms at 16k
     this.outPos = 0;
+    this.levelAcc = 0;
+    this.levelCount = 0;
+    this.lastLevelPost = 0;
   }
 
   process(inputs) {
     const input = inputs[0];
     if (!input || !input[0]) return true;
     const chunk = input[0];
+
+    // input level meter: RMS posted ~4x/s so the UI can show a live meter
+    for (let i = 0; i < chunk.length; i++) this.levelAcc += chunk[i] * chunk[i];
+    this.levelCount += chunk.length;
+    if (currentTime - this.lastLevelPost > 0.25) {
+      this.lastLevelPost = currentTime;
+      const rms = Math.sqrt(this.levelAcc / Math.max(1, this.levelCount));
+      this.levelAcc = 0;
+      this.levelCount = 0;
+      this.port.postMessage({ level: Math.min(1, rms * 4) });
+    }
 
     // append to carry
     const merged = new Float32Array(this.carry.length + chunk.length);

@@ -7,6 +7,9 @@ import "./overlays.css";
 interface SceneCanvasProps {
   imageUrl: string | null;
   caption: string;
+  // who is talking right now: null/undefined = the narrator, else a
+  // character name rendered as a chip above the line
+  speaker?: string | null;
   mood?: Mood;
   generating?: boolean;
 }
@@ -29,7 +32,7 @@ const MOOD_TINT: Record<Mood, string> = {
   item_closeup: "radial-gradient(ellipse at 50% 45%, transparent 35%, rgba(50,35,8,0.45) 100%)",
 };
 
-export default function SceneCanvas({ imageUrl, caption, mood, generating }: SceneCanvasProps) {
+export default function SceneCanvas({ imageUrl, caption, speaker, mood, generating }: SceneCanvasProps) {
   const [layers, setLayers] = useState<Layer[]>([]);
   const counterRef = useRef(0);
 
@@ -135,15 +138,28 @@ export default function SceneCanvas({ imageUrl, caption, mood, generating }: Sce
           }}
         >
           <div
-            className="max-w-xl w-full flex flex-col justify-end overflow-hidden"
-            style={{ height: "6.8em" }}
+            className="max-w-xl w-full flex flex-col justify-end items-center overflow-hidden"
+            style={{ height: "7.6em" }}
           >
+            {speaker && (
+              <span
+                className="mb-1 rounded-full border px-3 py-0.5 text-[11px] tracking-[0.2em] uppercase"
+                style={{
+                  color: "var(--vn-gold-bright, #f0d090)",
+                  borderColor: "rgba(217,179,108,0.5)",
+                  background: "rgba(0,0,0,0.55)",
+                }}
+              >
+                {speaker}
+              </span>
+            )}
             <p
               className="text-center text-[17px] leading-relaxed sm:text-lg"
               style={{
                 fontFamily: "var(--vn-font-display)",
                 color: "var(--vn-paper)",
                 textShadow: "0 1px 8px rgba(0,0,0,0.9)",
+                fontStyle: speaker ? "italic" : "normal",
               }}
             >
               {caption}

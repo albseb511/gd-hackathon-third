@@ -1,0 +1,215 @@
+"use client";
+
+// The presentation semaphore: ONE ordered pipeline for everything the player
+// hears. Narrator (live) audio and character (TTS) clips play strictly in
+// stream order — narrator chunks that arrive while a character line is being
+// synthesized are buffered, never lost, never overlapped.
+//
+//   [live seg: narrator chunks…] → [tts seg: VANCE line] → [live seg: …] → …
+//
+// The queue also drives who-is-speaking (caption chips), ducking, and the
+// "reveal choices only when the audio has fully drained" gate.
+
+type LiveSegment = { kind: "live"; chunks: string[]; scheduled: number; closed: boolean };
+type TtsSegment = {
+  kind: "tts";
+  speaker: string;
+  line: string;
+  clip: Promise<string | null>; // base64 24k PCM16, null on failure
+};
+type Segment = LiveSegment | TtsSegment;
+
+export interface SpeakerInfo {
+  speaker: string; // "narrator" or a character name
+  line?: string; // the exact line, for TTS segments
+}
+
+const TTS_WAIT_MS = 9000;
+
+export class PresentationQueue {
+  private ctx: AudioContext | null = null;
+  private segments: Segment[] = [];
+  private cursor = 0; // ctx time where the next clip starts
+  private sources = new Set<AudioBufferSourceNode>();
+  private pumping = false;
+  private epoch = 0; // bumped on flush; stale pumps/awaits abandon
+  private speakingTimer: ReturnType<typeof setTimeout> | null = null;
+  private wake: (() => void) | null = null;
+
+  onSpeaking: (speaking: boolean) => void = () => {};
+  onSpeaker: (info: SpeakerInfo | null) => void = () => {};
+
+  // must be called from a user gesture at least once
+  ensureCtx(): AudioContext {
+    if (!this.ctx) this.ctx = new AudioContext({ sampleRate: 24000 });
+    if (this.ctx.state === "suspended") void this.ctx.resume();
+    return this.ctx;
+  }
+
+  get speaking(): boolean {
+    return !!this.ctx && this.cursor > this.ctx.currentTime;
+  }
+
+  get drained(): boolean {
+    return this.segments.length === 0 && !this.speaking;
+  }
+
+  /** Narrator audio chunk from the live stream. */
+  pushLive(base64Pcm: string) {
+    let tail = this.segments[this.segments.length - 1];
+    if (!tail || tail.kind !== "live" || tail.closed) {
+      tail = { kind: "live", chunks: [], scheduled: 0, closed: false };
+      this.segments.push(tail);
+    }
+    tail.chunks.push(base64Pcm);
+    this.poke();
+  }
+
+  /** A character line: closes the current narrator segment, synthesis rides in order. */
+  pushTts(speaker: string, line: string, clip: Promise<string | null>) {
+    const tail = this.segments[this.segments.length - 1];
+    if (tail?.kind === "live") tail.closed = true;
+    this.segments.push({ kind: "tts", speaker, line, clip });
+    this.poke();
+  }
+
+  /** Barge-in: kill everything, everywhere, now. */
+  flush() {
+    this.epoch++;
+    this.segments = [];
+    for (const s of this.sources) {
+      try {
+        s.stop();
+      } catch {}
+    }
+    this.sources.clear();
+    this.cursor = 0;
+    this.setSpeakingSoon(0);
+    this.onSpeaker(null);
+  }
+
+  dispose() {
+    this.flush();
+    void this.ctx?.close();
+    this.ctx = null;
+  }
+
+  /** Resolves when everything queued so far has finished playing. */
+  async waitForDrain(pollMs = 200): Promise<void> {
+    const epoch = this.epoch;
+    while (this.epoch === epoch && !this.drained) {
+      await new Promise((r) => setTimeout(r, pollMs));
+    }
+  }
+
+  // ---- internals -----------------------------------------------------------
+
+  private poke() {
+    this.wake?.();
+    if (!this.pumping) void this.pump();
+  }
+
+  private schedule(base64: string): number {
+    const ctx = this.ensureCtx();
+    const bin = atob(base64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const samples = new Int16Array(bytes.buffer, 0, Math.floor(bytes.length / 2));
+    const floats = new Float32Array(samples.length);
+    for (let i = 0; i < samples.length; i++) floats[i] = samples[i] / 0x8000;
+    const buf = ctx.createBuffer(1, Math.max(1, floats.length), 24000);
+    buf.copyToChannel(floats, 0);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(ctx.destination);
+    const startAt = Math.max(this.cursor, ctx.currentTime + 0.12);
+    src.start(startAt);
+    this.cursor = startAt + buf.duration;
+    this.sources.add(src);
+    src.onended = () => this.sources.delete(src);
+    this.setSpeakingSoon((this.cursor - ctx.currentTime) * 1000 + 250);
+    return this.cursor;
+  }
+
+  private setSpeakingSoon(remainingMs: number) {
+    this.onSpeaking(remainingMs > 300);
+    if (this.speakingTimer) clearTimeout(this.speakingTimer);
+    if (remainingMs > 300) {
+      this.speakingTimer = setTimeout(() => this.onSpeaking(false), remainingMs);
+    }
+  }
+
+  private async waitUntilCursor(epoch: number) {
+    while (this.epoch === epoch && this.ctx && this.cursor > this.ctx.currentTime + 0.05) {
+      await new Promise((r) => setTimeout(r, 120));
+    }
+  }
+
+  private async pump() {
+    if (this.pumping) return;
+    this.pumping = true;
+    const epoch = this.epoch;
+    try {
+      while (this.epoch === epoch) {
+        const seg = this.segments[0];
+        if (!seg) break;
+
+        if (seg.kind === "live") {
+          // schedule whatever has arrived
+          while (seg.scheduled < seg.chunks.length) {
+            this.schedule(seg.chunks[seg.scheduled++]);
+          }
+          if (seg.closed) {
+            this.segments.shift();
+            continue;
+          }
+          // open tail: wait for more chunks or a closer
+          await new Promise<void>((r) => {
+            this.wake = r;
+            setTimeout(r, 400); // heartbeat so turn-end drains promptly
+          });
+          this.wake = null;
+          // if nothing new and nothing after us, and audio drained → idle out
+          if (
+            this.segments[0] === seg &&
+            seg.scheduled >= seg.chunks.length &&
+            !seg.closed &&
+            this.segments.length === 1 &&
+            !this.speaking
+          ) {
+            // keep the segment as the open tail but stop pumping
+            if (seg.chunks.length === 0) this.segments.shift();
+            break;
+          }
+          continue;
+        }
+
+        // TTS segment: let prior audio finish, then play the clip
+        await this.waitUntilCursor(epoch);
+        if (this.epoch !== epoch) break;
+        const clip = await Promise.race([
+          seg.clip,
+          new Promise<null>((r) => setTimeout(() => r(null), TTS_WAIT_MS)),
+        ]);
+        if (this.epoch !== epoch) break;
+        this.onSpeaker({ speaker: seg.speaker, line: seg.line });
+        if (clip) {
+          this.schedule(clip);
+          await this.waitUntilCursor(epoch);
+        } else {
+          // synthesis failed: hold the caption a beat so the line still lands
+          await new Promise((r) => setTimeout(r, Math.min(3500, 900 + seg.line.length * 45)));
+        }
+        if (this.epoch !== epoch) break;
+        this.onSpeaker(null);
+        this.segments.shift();
+      }
+    } finally {
+      this.pumping = false;
+      // new pushes while we were exiting?
+      if (this.epoch === epoch && this.segments.some((s) => s.kind === "tts" || (s.kind === "live" && s.scheduled < s.chunks.length))) {
+        void this.pump();
+      }
+    }
+  }
+}

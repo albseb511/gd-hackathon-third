@@ -20,7 +20,7 @@ import { generateImage } from "@/lib/artist";
 import { getOrCreatePlayer } from "@/lib/player";
 import { loadPlaythroughContext } from "@/lib/storyEngine/loadContext";
 import { BASE_ART_STYLE } from "@/lib/storyEngine/outline";
-import type { CharacterSheet } from "@/lib/storyEngine/types";
+import { CHARACTER_VOICE_POOL, type CharacterSheet } from "@/lib/storyEngine/types";
 
 export const maxDuration = 60;
 
@@ -36,6 +36,9 @@ const sheetPayloadZ = z.object({
   visualTokens: z.string().min(1),
   personalityHints: z.string().min(1),
   voiceStyle: z.string().min(1),
+  // enum enforced by the response schema; tolerate a stray value rather than
+  // sinking character creation over a voice pick
+  voiceName: z.string().optional(),
   stats: z.object({
     might: z.number(),
     wit: z.number(),
@@ -60,6 +63,12 @@ const sheetG: Schema = {
       description:
         "How this character SOUNDS when quoted, performable by a voice actor: pitch, pace, texture, one verbal tic.",
     },
+    voiceName: {
+      type: Type.STRING,
+      enum: [...CHARACTER_VOICE_POOL],
+      description:
+        "The prebuilt TTS voice closest to this character's voiceStyle (gender, age, texture).",
+    },
     stats: {
       type: Type.OBJECT,
       description:
@@ -72,8 +81,8 @@ const sheetG: Schema = {
       required: ["might", "wit", "charm"],
     },
   },
-  required: ["visualTokens", "personalityHints", "voiceStyle", "stats"],
-  propertyOrdering: ["visualTokens", "personalityHints", "voiceStyle", "stats"],
+  required: ["visualTokens", "personalityHints", "voiceStyle", "voiceName", "stats"],
+  propertyOrdering: ["visualTokens", "personalityHints", "voiceStyle", "voiceName", "stats"],
 };
 
 const clampStat = (n: number) => Math.max(1, Math.min(5, Math.round(n)));
@@ -98,6 +107,7 @@ Rules:
 - voiceStyle: how this character sounds when quoted, performable by a voice actor — pitch, pace, texture, one verbal tic. Ground it in the self-description${
     hasPhoto ? " and the photo's vibe" : ""
   }.
+- voiceName: pick the pool voice closest to this character's voiceStyle — match gender, age, and texture.
 - stats: might, wit, charm — integers 1-5 each, summing to 9-11. Justify the spread by the self-description${
     hasPhoto ? " and appearance" : ""
   }; no flat 3/3/3 unless truly warranted.
@@ -138,6 +148,11 @@ async function generateSheet(
     visualTokens: payload.visualTokens,
     personalityHints: payload.personalityHints,
     voiceStyle: payload.voiceStyle,
+    voiceName:
+      payload.voiceName &&
+      (CHARACTER_VOICE_POOL as readonly string[]).includes(payload.voiceName)
+        ? payload.voiceName
+        : undefined,
     stats: {
       might: clampStat(payload.stats.might),
       wit: clampStat(payload.stats.wit),

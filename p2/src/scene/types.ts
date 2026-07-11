@@ -16,6 +16,16 @@ export interface Wall {
   height: number;
   thickness: number;
   material?: string; // MaterialDef id
+  kind?: "exterior" | "partition" | "railing"; // railing = low balcony edge
+}
+
+// A named room in a multi-room apartment. Rectangular XZ footprint.
+export interface Room {
+  id: string;
+  name: string;
+  type: "bedroom" | "hall" | "kitchen" | "bath" | "balcony" | "other";
+  bounds: { min: Vec2; max: Vec2 }; // [x,z] corners on the floor
+  floorMaterial?: string;
 }
 
 export interface Opening {
@@ -61,7 +71,7 @@ export interface CameraShot {
 
 export interface RoomDesign {
   room: {
-    dims: { w: number; d: number; h: number };
+    dims: { w: number; d: number; h: number }; // overall footprint (plot interior)
     floor: MaterialRef;
     ceiling: MaterialRef;
   };
@@ -72,4 +82,8 @@ export interface RoomDesign {
   lights: Light[];
   cameras: CameraShot[];
   style: { philosophy: string; palette: string[]; mood: string };
+  // Multi-room apartment extensions (optional — single-room designs omit them).
+  rooms?: Room[];
+  plot?: { w: number; d: number };
+  level?: number;
 }

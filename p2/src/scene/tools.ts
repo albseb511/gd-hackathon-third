@@ -8,6 +8,7 @@ import type { RoomDesign } from "./types";
 import type { Patch } from "./patch";
 import { emptyRoom } from "./defaults";
 import { catalogEntry, CATALOG_IDS } from "./catalog";
+import { buildApartment } from "@/lib/apartment";
 
 const deg2rad = (d: number) => (d * Math.PI) / 180;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -252,6 +253,185 @@ export const TOOLS: ToolDef[] = [
         },
       },
     ],
+  },
+  {
+    name: "create_apartment",
+    description:
+      "Create a full multi-room apartment (e.g. a 2 BHK) with rooms, partition walls, real doors, windows and an optional balcony. Resets the whole design.",
+    schema: z.object({
+      bedrooms: z.number().min(1).max(5).optional(),
+      bathrooms: z.number().min(1).max(4).optional(),
+      balcony: z.boolean().optional(),
+      plotW: z.number().min(5).max(30).optional(),
+      plotD: z.number().min(5).max(30).optional(),
+      height: z.number().min(2.4).max(4).optional(),
+      philosophy: z.string().optional(),
+    }),
+    declaration: {
+      name: "create_apartment",
+      description: "Generate a multi-room apartment (BHK).",
+      parameters: {
+        type: Type.OBJECT,
+        properties: {
+          bedrooms: { type: Type.NUMBER, description: "number of bedrooms (BHK)" },
+          bathrooms: { type: Type.NUMBER },
+          balcony: { type: Type.BOOLEAN },
+          plotW: { type: Type.NUMBER, description: "plot width in meters" },
+          plotD: { type: Type.NUMBER, description: "plot depth in meters" },
+          height: { type: Type.NUMBER },
+          philosophy: { type: Type.STRING },
+        },
+      },
+    },
+    toPatches: (a) => [{ op: "replace", path: "", value: buildApartment(a) }],
+  },
+  {
+    name: "add_wall",
+    description: "Add a wall segment between two floor points (meters).",
+    schema: z.object({
+      fromX: z.number(),
+      fromZ: z.number(),
+      toX: z.number(),
+      toZ: z.number(),
+      height: z.number().optional(),
+      thickness: z.number().optional(),
+    }),
+    declaration: {
+      name: "add_wall",
+      description: "Add a wall from (fromX,fromZ) to (toX,toZ).",
+      parameters: {
+        type: Type.OBJECT,
+        properties: {
+          fromX: { type: Type.NUMBER }, fromZ: { type: Type.NUMBER },
+          toX: { type: Type.NUMBER }, toZ: { type: Type.NUMBER },
+          height: { type: Type.NUMBER }, thickness: { type: Type.NUMBER },
+        },
+        required: ["fromX", "fromZ", "toX", "toZ"],
+      },
+    },
+    toPatches: (a, d) => [
+      {
+        op: "add",
+        path: "/walls/-",
+        value: {
+          id: `wall_${nanoid(6)}`,
+          from: [a.fromX, a.fromZ],
+          to: [a.toX, a.toZ],
+          height: a.height ?? d.room.dims.h,
+          thickness: a.thickness ?? 0.1,
+          kind: "partition",
+          material: "wall_partition",
+        },
+      },
+    ],
+  },
+  {
+    name: "edit_wall",
+    description: "Move or resize an existing wall by id.",
+    schema: z.object({
+      id: z.string(),
+      fromX: z.number().optional(), fromZ: z.number().optional(),
+      toX: z.number().optional(), toZ: z.number().optional(),
+      thickness: z.number().optional(), height: z.number().optional(),
+    }),
+    declaration: {
+      name: "edit_wall",
+      description: "Edit wall geometry by id.",
+      parameters: {
+        type: Type.OBJECT,
+        properties: {
+          id: { type: Type.STRING },
+          fromX: { type: Type.NUMBER }, fromZ: { type: Type.NUMBER },
+          toX: { type: Type.NUMBER }, toZ: { type: Type.NUMBER },
+          thickness: { type: Type.NUMBER }, height: { type: Type.NUMBER },
+        },
+        required: ["id"],
+      },
+    },
+    toPatches: (a, d) => {
+      const idx = d.walls.findIndex((w) => w.id === a.id);
+      if (idx < 0) return [];
+      const w = d.walls[idx];
+      const patches: Patch[] = [];
+      const from: [number, number] = [a.fromX ?? w.from[0], a.fromZ ?? w.from[1]];
+      const to: [number, number] = [a.toX ?? w.to[0], a.toZ ?? w.to[1]];
+      if (a.fromX != null || a.fromZ != null) patches.push({ op: "replace", path: `/walls/${idx}/from`, value: from });
+      if (a.toX != null || a.toZ != null) patches.push({ op: "replace", path: `/walls/${idx}/to`, value: to });
+      if (a.thickness != null) patches.push({ op: "replace", path: `/walls/${idx}/thickness`, value: a.thickness });
+      if (a.height != null) patches.push({ op: "replace", path: `/walls/${idx}/height`, value: a.height });
+      return patches;
+    },
+  },
+  {
+    name: "remove_wall",
+    description: "Remove a wall by id.",
+    schema: z.object({ id: z.string() }),
+    declaration: {
+      name: "remove_wall",
+      description: "Remove a wall by id.",
+      parameters: { type: Type.OBJECT, properties: { id: { type: Type.STRING } }, required: ["id"] },
+    },
+    toPatches: (a, d) => {
+      const idx = d.walls.findIndex((w) => w.id === a.id);
+      return idx < 0 ? [] : [{ op: "remove", path: `/walls/${idx}` }];
+    },
+  },
+  {
+    name: "add_opening",
+    description: "Add a door or window on a wall. offset = meters along the wall from its start.",
+    schema: z.object({
+      wallId: z.string(),
+      type: z.enum(["door", "window"]),
+      offset: z.number(),
+      width: z.number(),
+      height: z.number(),
+      sill: z.number().optional(),
+    }),
+    declaration: {
+      name: "add_opening",
+      description: "Add a door/window on a wall.",
+      parameters: {
+        type: Type.OBJECT,
+        properties: {
+          wallId: { type: Type.STRING },
+          type: { type: Type.STRING, enum: ["door", "window"] },
+          offset: { type: Type.NUMBER }, width: { type: Type.NUMBER },
+          height: { type: Type.NUMBER }, sill: { type: Type.NUMBER },
+        },
+        required: ["wallId", "type", "offset", "width", "height"],
+      },
+    },
+    toPatches: (a, d) => {
+      if (!d.walls.some((w) => w.id === a.wallId)) return [];
+      return [
+        {
+          op: "add",
+          path: "/openings/-",
+          value: {
+            id: `op_${nanoid(6)}`,
+            type: a.type,
+            wallId: a.wallId,
+            offset: a.offset,
+            size: [a.width, a.height],
+            sill: a.type === "window" ? (a.sill ?? 0.9) : undefined,
+          },
+        },
+      ];
+    },
+  },
+  {
+    name: "remove_opening",
+    description: "Remove a door/window by id.",
+    schema: z.object({ id: z.string() }),
+    declaration: {
+      name: "remove_opening",
+      description: "Remove an opening by id.",
+      parameters: { type: Type.OBJECT, properties: { id: { type: Type.STRING } }, required: ["id"] },
+    },
+    toPatches: (a, d) => {
+      const idx = d.openings.findIndex((o) => o.id === a.id);
+      return idx < 0 ? [] : [{ op: "remove", path: `/openings/${idx}` }];
+    },
   },
 ];
 

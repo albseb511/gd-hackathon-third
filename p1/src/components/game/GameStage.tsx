@@ -93,6 +93,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
   const pendingChoicesRef = useRef<string[] | null>(null);
   // caption updates are throttled to kill per-chunk layout jank
   const captionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastNarrationRef = useRef(""); // previous turn's text, for echo detection
   // opening gate: hold narrator audio until the first scene image is visible
   const audioGateRef = useRef<{ active: boolean; queue: string[] }>({
     active: true,
@@ -422,7 +423,10 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
             break;
           case "present_choices": {
             turnFlagsRef.current.hadChoices = true;
-            respond(fc.id, fc.name, { ok: true });
+            respond(fc.id, fc.name, {
+              ok: true,
+              note: "choices are on screen — finish your sentence, then stop and wait for the player's decision",
+            });
             const options = (args.options as string[]) ?? [];
             // buffer: options appear when the narrator finishes speaking,
             // never mutate mid-sentence
@@ -660,15 +664,26 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
               }
             }
             if (sc?.inputTranscription?.text) {
-              // player spoke: clear stale choices, mark for latency,
-              // accumulate for the director's social read + provisional frame
-              speechEndMarkRef.current = performance.now();
-              lastPlayerTextRef.current =
-                (lastPlayerTextRef.current + " " + sc.inputTranscription.text).slice(-500);
-              utteranceRef.current =
-                (utteranceRef.current + " " + sc.inputTranscription.text).slice(-300);
-              provisionalFiredRef.current = false;
-              setChoices([]);
+              const heard = sc.inputTranscription.text;
+              // echo guard: on speakers, the mic can pick up the narrator's
+              // own words — if the "player input" is a substring of what the
+              // narrator just said, it isn't the player. Don't let it clear
+              // choices or fire provisional frames.
+              const recentOut = (captionRef.current + " " + lastNarrationRef.current).toLowerCase();
+              const words = heard.toLowerCase().split(/\s+/).filter((w) => w.length > 3);
+              const isEcho =
+                words.length >= 3 &&
+                words.filter((w) => recentOut.includes(w)).length / words.length > 0.8;
+              if (!isEcho) {
+                // player spoke: clear stale choices, mark for latency,
+                // accumulate for the director's social read + provisional frame
+                speechEndMarkRef.current = performance.now();
+                lastPlayerTextRef.current =
+                  (lastPlayerTextRef.current + " " + heard).slice(-500);
+                utteranceRef.current = (utteranceRef.current + " " + heard).slice(-300);
+                provisionalFiredRef.current = false;
+                setChoices([]);
+              }
             }
             if (m.toolCall) handleToolCall(m);
             if (m.sessionResumptionUpdate?.resumable && m.sessionResumptionUpdate.newHandle) {
@@ -677,6 +692,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
             }
             if (sc?.turnComplete) {
               const narration = captionRef.current.trim();
+              if (narration) lastNarrationRef.current = narration;
               captionRef.current = "";
               if (captionTimerRef.current) {
                 clearTimeout(captionTimerRef.current);

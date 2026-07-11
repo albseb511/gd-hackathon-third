@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // minimal server bundle for the Docker runtime stage
+  output: "standalone",
 };
 
 export default nextConfig;

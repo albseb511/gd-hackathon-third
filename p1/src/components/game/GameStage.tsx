@@ -121,6 +121,9 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
   // what the player said since the narrator last finished a turn
   const utteranceRef = useRef("");
   const provisionalFiredRef = useRef(false);
+  // stall watchdog: when both sides go quiet with nothing on screen, nudge
+  const lastActivityRef = useRef(0);
+  const nudgedRef = useRef(false);
 
   // render mirrors of ref-held game data
   const [data, setData] = useState<PlaythroughData | null>(null);
@@ -149,6 +152,15 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
         setData(d);
         stateRef.current = d.playthrough.state;
         setHp(d.playthrough.state?.hp ?? 10);
+        // seed the predictive cache with prewarmed opening scenes
+        for (const [beatId, assetId] of Object.entries(
+          d.playthrough.state?.sceneCache ?? {},
+        )) {
+          beatCacheRef.current.set(
+            beatId,
+            Promise.resolve({ dataUrl: `/api/assets/${assetId}`, assetId }),
+          );
+        }
         sceneIdxRef.current = d.scenes.length
           ? Math.max(...d.scenes.map((s) => s.idx)) + 1
           : 0;
@@ -672,6 +684,8 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
               } else {
                 audio.playChunk(part.inlineData.data);
               }
+              lastActivityRef.current = Date.now();
+              nudgedRef.current = false;
               // narrator has started answering — the player's words are final
               if (utteranceRef.current) fireProvisionalFrame();
             }
@@ -700,6 +714,8 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
               if (!isEcho) {
                 // player spoke: clear stale choices, mark for latency,
                 // accumulate for the director's social read + provisional frame
+                lastActivityRef.current = Date.now();
+                nudgedRef.current = false;
                 speechEndMarkRef.current = performance.now();
                 lastPlayerTextRef.current =
                   (lastPlayerTextRef.current + " " + heard).slice(-500);
@@ -763,6 +779,40 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
     connectRef.current = connect;
   }, [connect]);
 
+  // Stall watchdog: narrator silent, nothing interactive on screen, player
+  // quiet for 14s → ask the narrator to re-establish and offer choices.
+  useEffect(() => {
+    if (phase !== "live") return;
+    if (!lastActivityRef.current) lastActivityRef.current = Date.now();
+    const timer = setInterval(() => {
+      const idleMs = Date.now() - lastActivityRef.current;
+      if (
+        idleMs > 14000 &&
+        !nudgedRef.current &&
+        !audio.speaking &&
+        choices.length === 0 &&
+        !qte &&
+        !dice &&
+        !ending
+      ) {
+        nudgedRef.current = true;
+        sessionRef.current?.sendClientContent({
+          turns: [
+            {
+              role: "user",
+              parts: [
+                {
+                  text: "[SYSTEM] The player seems unsure how to proceed. In one short line, re-establish the tension of the moment, then call present_choices with 2-4 options.",
+                },
+              ],
+            },
+          ],
+        });
+      }
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [phase, audio.speaking, choices.length, qte, dice, ending]);
+
   const begin = useCallback(async () => {
     setPhase("connecting");
     try {
@@ -820,6 +870,8 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
 
   // ---- player inputs ----
   const sendText = useCallback((text: string) => {
+    lastActivityRef.current = Date.now();
+    nudgedRef.current = false;
     speechEndMarkRef.current = performance.now();
     lastPlayerTextRef.current = text;
     utteranceRef.current = text;
@@ -949,9 +1001,11 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
         </div>
       </div>
 
+      {/* always give the player a way in: buttons when offered, free
+          text + mic affordance whenever the stage is otherwise idle */}
       <ChoiceBar
         options={choices}
-        visible={choices.length > 0 && !qte && !dice && !ending}
+        visible={!qte && !dice && !ending && (choices.length > 0 || !audio.speaking)}
         onChoose={onChoose}
         onFreeText={sendText}
         listening={audio.micActive && !audio.speaking}

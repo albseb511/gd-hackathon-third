@@ -22,6 +22,8 @@ export class MusicMixer {
   private buffers = new Map<string, Promise<AudioBuffer | null>>();
   private bank: string;
   private disposed = false;
+  // per-session arrangement pick — replays get a different score
+  private variant: "" | "-2" = Math.random() < 0.5 ? "" : "-2";
 
   constructor(bank: string) {
     this.bank = bank; // e.g. "noir" → /music/noir/<mood>.mp3
@@ -46,11 +48,18 @@ export class MusicMixer {
   }
 
   private load(mood: string): Promise<AudioBuffer | null> {
-    const key = `${this.bank}/${mood}`;
+    const key = `${this.bank}/${mood}${this.variant}`;
     let p = this.buffers.get(key);
     if (!p) {
-      p = fetch(`/music/${this.bank}/${mood}.mp3`)
-        .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject()))
+      p = fetch(`/music/${this.bank}/${mood}${this.variant}.mp3`)
+        .then((r) =>
+          r.ok
+            ? r.arrayBuffer()
+            : // variant missing → fall back to the base arrangement
+              fetch(`/music/${this.bank}/${mood}.mp3`).then((r2) =>
+                r2.ok ? r2.arrayBuffer() : Promise.reject(),
+              ),
+        )
         .then((ab) => this.ctx!.decodeAudioData(ab))
         .catch(() => null);
       this.buffers.set(key, p);

@@ -56,14 +56,22 @@ async function main() {
     const dir = new URL(`../public/music/${story}`, import.meta.url).pathname;
     mkdirSync(dir, { recursive: true });
     for (const [mood, feel] of Object.entries(MOODS)) {
-      const out = `${dir}/${mood}.mp3`;
-      if (existsSync(out)) continue; // resumable
-      jobs.push({
-        story,
-        mood,
-        out,
-        prompt: `Instrumental game background music, seamless loopable, no vocals. Style: ${sound}. Mood: ${feel}.`,
-      });
+      // two arrangements per mood — the mixer picks one per session, so
+      // replays don't sound identical
+      for (const variant of ["", "-2"]) {
+        const out = `${dir}/${mood}${variant}.mp3`;
+        if (existsSync(out)) continue; // resumable
+        jobs.push({
+          story,
+          mood: `${mood}${variant}`,
+          out,
+          prompt: `Instrumental game background music, seamless loopable, no vocals. Style: ${sound}. Mood: ${feel}.${
+            variant
+              ? " An alternate arrangement: different lead instrument and melodic theme, same mood and style."
+              : ""
+          }`,
+        });
+      }
     }
   }
   console.log(`${jobs.length} clips to generate`);

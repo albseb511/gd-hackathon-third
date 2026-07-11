@@ -167,6 +167,24 @@ export default function CharacterCreator({
       setPhase("reveal");
       // let the base image mount before the portrait crossfades in
       setTimeout(() => setPortraitIn(true), 350);
+
+      // while the player admires their portrait, pre-paint the opening
+      // scenes (first beat + its branches) so the story starts instantly
+      if (playthroughId) {
+        void fetch("/api/prewarm", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            playthroughId,
+            aspect: window.innerHeight > window.innerWidth ? "9:16" : "16:9",
+          }),
+        }).catch(() => {});
+      }
+      // ask for the mic here too — /play then starts without a permission stop
+      void navigator.mediaDevices
+        ?.getUserMedia({ audio: true })
+        .then((stream) => stream.getTracks().forEach((t) => t.stop()))
+        .catch(() => {});
     } catch (err) {
       stageTimers.current.forEach(clearTimeout);
       setError(err instanceof Error ? err.message : "The forge went cold. Try again.");

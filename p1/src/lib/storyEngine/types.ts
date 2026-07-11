@@ -69,6 +69,8 @@ export interface PlayState {
   inventory: { name: string; note?: string; assetId?: string }[];
   relationships: Record<string, Relationship>;
   aura: { traits: string[]; reputation: string };
+  // beatId → pre-generated scene asset (prewarmed at character creation)
+  sceneCache?: Record<string, string>;
 }
 
 export const initialPlayState = (firstBeatId: string): PlayState => ({

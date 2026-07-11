@@ -1,4 +1,5 @@
 import BranchMap from "@/components/analytics/BranchMap";
+import JourneyTimeline from "@/components/analytics/JourneyTimeline";
 import Link from "next/link";
 
 async function getData(storyId: string) {
@@ -29,27 +30,34 @@ export default async function AnalyticsPage({
 
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100 p-6 md:p-10">
-      <p className="text-amber-400 text-xs tracking-[0.3em] uppercase mb-1">
+      <p className="text-amber-400 text-sm tracking-[0.3em] uppercase mb-1">
         Story cartography
       </p>
       <h1
-        className="text-4xl mb-1"
+        className="text-4xl md:text-5xl mb-1"
         style={{ fontFamily: "var(--font-display, Georgia, serif)" }}
       >
         {data.title}
       </h1>
-      <p className="text-zinc-500 mb-8">
+      <p className="text-zinc-400 text-base mb-8">
         {data.simCount} simulated playthroughs · every branch, every ending, every
         millisecond
       </p>
 
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 mb-10">
+      {/* phones: the big readable journey timeline (population view) */}
+      <section className="md:hidden mb-10">
+        <JourneyTimeline aggregate={data.aggregate} simCount={data.simCount} />
+      </section>
+
+      {/* md+: the full SVG branch map */}
+      <section className="hidden md:block rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 mb-10">
         <BranchMap aggregate={data.aggregate} height={520} />
       </section>
 
       <div className="grid md:grid-cols-2 gap-10">
-        <section>
-          <h2 className="text-sm uppercase tracking-widest text-zinc-400 mb-4">
+        {/* endings already told kid-style inside the mobile timeline */}
+        <section className="hidden md:block">
+          <h2 className="text-base uppercase tracking-widest text-zinc-400 mb-4">
             Ending distribution
           </h2>
           {data.aggregate.endings.map(
@@ -59,52 +67,55 @@ export default async function AnalyticsPage({
                   className="h-2 rounded bg-amber-500/80"
                   style={{ width: `${Math.max(2, e.pct) * 2}px` }}
                 />
-                <span className="text-zinc-300 text-sm">
+                <span className="text-zinc-300 text-base">
                   {e.endingId} <span className="text-zinc-500">({e.count} · {e.pct}%)</span>
                 </span>
               </div>
             ),
           )}
           {data.aggregate.unreachedBeats.length > 0 && (
-            <p className="text-zinc-600 text-xs mt-4">
+            <p className="text-zinc-600 text-sm mt-4">
               unreached beats: {data.aggregate.unreachedBeats.join(", ")}
             </p>
           )}
         </section>
 
-        <section>
-          <h2 className="text-sm uppercase tracking-widest text-zinc-400 mb-4">
+        {/* de-emphasized: for the judges, not the kids */}
+        <section className="opacity-70">
+          <h2 className="text-sm uppercase tracking-widest text-zinc-500 mb-4">
             Pipeline latency (live players)
           </h2>
-          <table className="text-sm w-full">
-            <thead>
-              <tr className="text-zinc-500 text-left">
-                <th className="pb-2 font-normal">step</th>
-                <th className="pb-2 font-normal text-right">p50</th>
-                <th className="pb-2 font-normal text-right">p95</th>
-                <th className="pb-2 font-normal text-right">n</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.liveLatency.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="py-3 text-zinc-600">
-                    no live plays recorded here yet — numbers appear as people play
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="text-sm w-full min-w-[420px]">
+              <thead>
+                <tr className="text-zinc-500 text-left">
+                  <th className="pb-2 font-normal">step</th>
+                  <th className="pb-2 font-normal text-right">p50</th>
+                  <th className="pb-2 font-normal text-right">p95</th>
+                  <th className="pb-2 font-normal text-right">n</th>
                 </tr>
-              )}
-              {(data.liveLatency as { step: string; p50: number; p95: number; n: number }[])
-                .sort((a, b) => b.n - a.n)
-                .map((l) => (
-                  <tr key={l.step} className="border-t border-zinc-800/60">
-                    <td className="py-1.5 text-zinc-300">{l.step}</td>
-                    <td className="py-1.5 text-right text-amber-300">{l.p50}ms</td>
-                    <td className="py-1.5 text-right text-zinc-400">{l.p95}ms</td>
-                    <td className="py-1.5 text-right text-zinc-600">{l.n}</td>
+              </thead>
+              <tbody>
+                {data.liveLatency.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="py-3 text-zinc-600">
+                      no live plays recorded here yet — numbers appear as people play
+                    </td>
                   </tr>
-                ))}
-            </tbody>
-          </table>
+                )}
+                {(data.liveLatency as { step: string; p50: number; p95: number; n: number }[])
+                  .sort((a, b) => b.n - a.n)
+                  .map((l) => (
+                    <tr key={l.step} className="border-t border-zinc-800/60">
+                      <td className="py-1.5 text-zinc-300 whitespace-nowrap">{l.step}</td>
+                      <td className="py-1.5 text-right text-amber-300">{l.p50}ms</td>
+                      <td className="py-1.5 text-right text-zinc-400">{l.p95}ms</td>
+                      <td className="py-1.5 text-right text-zinc-600">{l.n}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       </div>
     </main>

@@ -8,6 +8,10 @@ export function registerCanvas(el: HTMLCanvasElement | null) {
   canvasEl = el;
 }
 
+export function getCanvas(): HTMLCanvasElement | null {
+  return canvasEl;
+}
+
 export function captureViewport(maxEdge = 1280): string | null {
   if (!canvasEl || canvasEl.width === 0) return null;
   const scale = Math.min(1, maxEdge / Math.max(canvasEl.width, canvasEl.height));

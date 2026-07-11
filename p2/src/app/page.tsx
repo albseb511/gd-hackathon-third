@@ -1,4 +1,5 @@
 import ViewportMount from "@/components/viewport/ViewportMount";
+import { ViewportToolbar } from "@/components/viewport/ViewportToolbar";
 import { ControlPanel } from "@/components/panel/ControlPanel";
 
 export default function Home() {
@@ -10,6 +11,7 @@ export default function Home() {
           <h1 className="text-lg font-semibold tracking-tight text-zinc-100">Atelier</h1>
           <p className="text-xs text-zinc-400">Speak or type — agents design your 3D room</p>
         </div>
+        <ViewportToolbar />
       </div>
       <ControlPanel />
     </div>

@@ -105,8 +105,8 @@ export default function BranchMap({ aggregate, playerPath, height = 480 }: Props
                   x={mx}
                   y={(a.y + b.y) / 2 - 6}
                   textAnchor="middle"
-                  fill="#71717a"
-                  fontSize="10"
+                  fill="#a1a1aa"
+                  fontSize="12"
                 >
                   {e.count}
                 </text>
@@ -131,14 +131,14 @@ export default function BranchMap({ aggregate, playerPath, height = 480 }: Props
             <text
               y={-16}
               textAnchor="middle"
-              fill={n.onPlayerPath ? "#fbbf24" : n.visitedByPlayer || n.visits > 0 ? "#a1a1aa" : "#52525b"}
-              fontSize="11"
+              fill={n.onPlayerPath ? "#fbbf24" : n.visitedByPlayer || n.visits > 0 ? "#d4d4d8" : "#71717a"}
+              fontSize="13"
               style={{ fontFamily: "var(--font-geist-sans, sans-serif)" }}
             >
               {n.visitedByPlayer || n.visits > 0 ? n.label : "?"}
             </text>
             {n.visits > 0 && (
-              <text y={24} textAnchor="middle" fill="#71717a" fontSize="10">
+              <text y={24} textAnchor="middle" fill="#a1a1aa" fontSize="12">
                 {n.visits}×
               </text>
             )}

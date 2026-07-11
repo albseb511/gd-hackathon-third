@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Minimal server bundle for the Docker/Railway runtime stage.
+  output: "standalone",
 };
 
 export default nextConfig;

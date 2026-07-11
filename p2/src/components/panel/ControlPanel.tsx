@@ -32,7 +32,7 @@ export function ControlPanel() {
   const reset = useScene((s) => s.reset);
 
   const [goal, setGoal] = useState("");
-  const [busy, setBusy] = useState<null | "design" | "render" | "cost">(null);
+  const [busy, setBusy] = useState<null | "design" | "render" | "cost" | "photo">(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
   const [renders, setRenders] = useState<RenderItem[]>([]);
@@ -53,6 +53,32 @@ export function ControlPanel() {
       if (data.design) load(data.design);
       setTasks(data.tasks ?? []);
       setConflicts(data.conflicts ?? []);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  function fileToDataUrl(f: File): Promise<string> {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(String(r.result));
+      r.onerror = rej;
+      r.readAsDataURL(f);
+    });
+  }
+
+  async function onPhotos(files: FileList | null) {
+    if (!files || !files.length || busy) return;
+    setBusy("photo");
+    try {
+      const images = await Promise.all(Array.from(files).slice(0, 4).map(fileToDataUrl));
+      const res = await fetch("/api/photo-to-3d", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ images }),
+      });
+      const data = await res.json();
+      if (data.design) load(data.design);
     } finally {
       setBusy(null);
     }
@@ -133,6 +159,17 @@ export function ControlPanel() {
             </button>
           ))}
         </div>
+        <label className="mt-2 flex cursor-pointer items-center justify-center rounded-lg border border-dashed border-white/15 px-3 py-2 text-xs text-zinc-400 hover:border-emerald-500/40 hover:text-zinc-200">
+          {busy === "photo" ? "reconstructing…" : "🖼 Photo → 3D (upload room photos)"}
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            disabled={busy != null}
+            onChange={(e) => onPhotos(e.target.files)}
+          />
+        </label>
       </div>
 
       {/* Agent task ledger */}

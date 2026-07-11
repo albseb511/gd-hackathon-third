@@ -12,7 +12,8 @@
     "test:isolation": "tsx scripts/test-isolation.ts",
     "test:live-token": "tsx --env-file=.env.local scripts/test-live-token.ts",
     "test:orchestrator": "tsx --env-file=.env.local scripts/test-orchestrator.ts",
-    "test:cost": "tsx scripts/test-cost.ts"
+    "test:cost": "tsx scripts/test-cost.ts",
+    "test:photo": "tsx --env-file=.env.local scripts/test-photo-to-3d.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.0",

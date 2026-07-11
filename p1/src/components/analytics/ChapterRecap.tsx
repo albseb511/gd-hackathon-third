@@ -3,6 +3,7 @@
 // Post-chapter / post-story overlay: your route vs the simulated population.
 import { useEffect, useState } from "react";
 import BranchMap from "./BranchMap";
+import JourneyTimeline from "./JourneyTimeline";
 import type { AggregateResult } from "@/lib/sim/aggregate";
 
 interface AnalyticsPayload {
@@ -34,78 +35,90 @@ export default function ChapterRecap({
   return (
     <div className="fixed inset-0 z-40 bg-black/90 backdrop-blur-md overflow-y-auto">
       <div className="max-w-4xl mx-auto p-6 pt-10">
-        <div className="flex items-start justify-between mb-6">
+        <div className="flex items-start justify-between gap-3 mb-6">
           <div>
-            <p className="text-amber-400 text-xs tracking-[0.3em] uppercase mb-1">
+            <p className="text-amber-400 text-sm tracking-[0.3em] uppercase mb-1">
               Your story so far
             </p>
             <h2
-              className="text-3xl text-zinc-100"
+              className="text-3xl md:text-4xl text-zinc-100"
               style={{ fontFamily: "var(--font-display, Georgia, serif)" }}
             >
               {data?.title ?? "…"}
             </h2>
             {data && data.simCount > 0 && (
-              <p className="text-zinc-500 text-sm mt-1">
+              <p className="text-zinc-400 text-base mt-1">
                 your amber route vs {data.simCount} simulated players
               </p>
             )}
           </div>
           <button
             onClick={onClose}
-            className="text-zinc-400 hover:text-zinc-100 text-2xl leading-none px-2"
+            className="shrink-0 flex items-center justify-center h-12 w-12 rounded-full border border-zinc-700 bg-zinc-900/80 text-zinc-300 hover:text-zinc-50 hover:border-zinc-500 text-3xl leading-none"
             aria-label="close"
           >
             ×
           </button>
         </div>
 
-        {error && <p className="text-zinc-500">the cartographer is unavailable.</p>}
+        {error && <p className="text-zinc-400 text-base">the cartographer is unavailable.</p>}
         {!data && !error && (
-          <p className="text-zinc-500 animate-pulse">drawing the map…</p>
+          <p className="text-zinc-400 text-base animate-pulse">drawing the map…</p>
         )}
         {data && (
           <>
-            <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4 mb-6">
-              <BranchMap
+            {/* phones: big readable journey timeline */}
+            <div className="md:hidden mb-6">
+              <JourneyTimeline
                 aggregate={data.aggregate}
                 playerPath={data.playerPath}
-                height={420}
+                simCount={data.simCount}
               />
             </div>
 
-            {data.aggregate.endings.length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-zinc-300 text-sm uppercase tracking-widest mb-3">
-                  How stories end
-                </h3>
-                <div className="flex flex-wrap gap-3">
-                  {data.aggregate.endings.map((e) => (
-                    <div
-                      key={e.endingId}
-                      className="rounded-lg border border-zinc-800 px-4 py-2 text-sm"
-                    >
-                      <span className="text-zinc-200">{e.endingId.replace(/^ending[_-]?/, "")}</span>{" "}
-                      <span className="text-amber-400">{e.pct}%</span>
+            {/* md+: the full branch map plus the dense stats */}
+            <div className="hidden md:block">
+              <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4 mb-6">
+                <BranchMap
+                  aggregate={data.aggregate}
+                  playerPath={data.playerPath}
+                  height={420}
+                />
+              </div>
+
+              {data.aggregate.endings.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-zinc-300 text-base uppercase tracking-widest mb-3">
+                    How stories end
+                  </h3>
+                  <div className="flex flex-wrap gap-3">
+                    {data.aggregate.endings.map((e) => (
+                      <div
+                        key={e.endingId}
+                        className="rounded-lg border border-zinc-800 px-4 py-2 text-base"
+                      >
+                        <span className="text-zinc-200">{e.endingId.replace(/^ending[_-]?/, "")}</span>{" "}
+                        <span className="text-amber-400">{e.pct}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {data.aggregate.choiceStats.slice(0, 4).map((c) => (
+                <div key={c.beatId} className="mb-4">
+                  <p className="text-zinc-400 text-sm mb-1">{c.beatId}</p>
+                  {c.options.map((o) => (
+                    <div key={o.option} className="flex items-center gap-2 mb-1">
+                      <div className="h-1.5 bg-amber-500/70 rounded" style={{ width: `${Math.max(2, o.pct)}%`, maxWidth: "60%" }} />
+                      <span className="text-zinc-300 text-sm">
+                        {o.pct}% — {o.option}
+                      </span>
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
-
-            {data.aggregate.choiceStats.slice(0, 4).map((c) => (
-              <div key={c.beatId} className="mb-4">
-                <p className="text-zinc-500 text-xs mb-1">{c.beatId}</p>
-                {c.options.map((o) => (
-                  <div key={o.option} className="flex items-center gap-2 mb-1">
-                    <div className="h-1.5 bg-amber-500/70 rounded" style={{ width: `${Math.max(2, o.pct)}%`, maxWidth: "60%" }} />
-                    <span className="text-zinc-400 text-xs">
-                      {o.pct}% — {o.option}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ))}
+              ))}
+            </div>
           </>
         )}
       </div>

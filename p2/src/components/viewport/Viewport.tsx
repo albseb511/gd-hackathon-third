@@ -14,10 +14,12 @@ import { CAMERA_FOV_DEG, viewPose, type Bounds } from "./camera-rig";
 import { RoomMesh } from "./RoomMesh";
 import { FurnitureMesh } from "./FurnitureMesh";
 import { registerCanvas } from "./capture";
+import { registerControls, registerFly } from "./cameraBus";
 
 function FitCamera({ bounds, fitKey }: { bounds: Bounds; fitKey: string }) {
   const controls = useRef<ComponentRef<typeof CameraControls>>(null);
   const { size } = useThree();
+
   useEffect(() => {
     const aspect = size.height ? size.width / size.height : 1.6;
     const pose = viewPose("main", bounds, aspect);
@@ -28,6 +30,25 @@ function FitCamera({ bounds, fitKey }: { bounds: Bounds; fitKey: string }) {
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fitKey, size.width, size.height]);
+
+  // Expose the controls + a flyTo(view) to the 2D toolbar.
+  useEffect(() => {
+    registerControls(controls.current);
+    registerFly((v) => {
+      const aspect = size.height ? size.width / size.height : 1.6;
+      const pose = viewPose(v, bounds, aspect);
+      controls.current?.setLookAt(
+        pose.position[0], pose.position[1], pose.position[2],
+        pose.target[0], pose.target[1], pose.target[2],
+        true,
+      );
+    });
+    return () => {
+      registerControls(null);
+      registerFly(null);
+    };
+  }, [bounds, size.width, size.height]);
+
   return (
     <CameraControls ref={controls} makeDefault minDistance={0.6} maxDistance={80} maxPolarAngle={Math.PI / 2 - 0.02} />
   );

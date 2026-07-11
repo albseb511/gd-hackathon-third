@@ -99,6 +99,16 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
     queue: [],
   });
   const renderSeqRef = useRef(0);
+  // portrait phones get portrait art — full frame, no center crop
+  const aspectRef = useRef<"16:9" | "9:16">("16:9");
+  useEffect(() => {
+    const update = () => {
+      aspectRef.current = window.innerHeight > window.innerWidth ? "9:16" : "16:9";
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
   // speculative branch pre-generation: option → in-flight/settled image
   const speculativeRef = useRef<Map<string, Promise<{ dataUrl: string; assetId: string | null } | null>>>(
     new Map(),
@@ -201,6 +211,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
             .map((c) => c.portraitAssetId)
             .filter((x): x is string => Boolean(x)),
           playthroughId,
+          aspect: aspectRef.current,
         }),
       })
         .then((r) => (r.ok ? (r.json() as Promise<{ dataUrl: string; assetId: string | null }>) : null))
@@ -300,6 +311,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
               .map((c) => c.portraitAssetId)
               .filter((x): x is string => Boolean(x)),
             playthroughId,
+            aspect: aspectRef.current,
           }),
         });
         if (!res.ok) throw new Error(`scene-image ${res.status}`);
@@ -336,6 +348,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
                 shot: "edit",
                 previousAssetId: assetId,
                 playthroughId,
+                aspect: aspectRef.current,
               }),
             })
               .then((r) => (r.ok ? r.json() : null))
@@ -430,6 +443,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
                     shot: lastAssetIdRef.current ? "edit" : "new",
                     previousAssetId: lastAssetIdRef.current ?? undefined,
                     playthroughId,
+                    aspect: aspectRef.current,
                   }),
                 })
                   .then((r) => (r.ok ? r.json() : null))

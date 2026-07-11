@@ -7,6 +7,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { MusicMixer, bankForGenre } from "@/components/audio/mixer";
 import type { CharacterSheet, Stat } from "@/lib/storyEngine/types";
 import "@/components/game/overlays.css";
 
@@ -93,11 +94,38 @@ export default function CharacterCreator({
   const [portraitIn, setPortraitIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const stageTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const mixerRef = useRef<MusicMixer | null>(null);
+  const bankRef = useRef("fantasy");
 
   useEffect(() => {
     const timers = stageTimers.current;
     return () => timers.forEach(clearTimeout);
   }, []);
+
+  // BGM starts here, on the first user gesture (autoplay rules) — the story's
+  // score plays quietly from the forge onward
+  useEffect(() => {
+    if (playthroughId) {
+      fetch(`/api/playthroughs/${playthroughId}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { outline?: { genre?: string } } | null) => {
+          if (d?.outline?.genre) bankRef.current = bankForGenre(d.outline.genre);
+        })
+        .catch(() => {});
+    }
+    const startMusic = () => {
+      if (mixerRef.current) return;
+      mixerRef.current = new MusicMixer(bankRef.current);
+      mixerRef.current.start();
+      void mixerRef.current.play("intro");
+    };
+    window.addEventListener("pointerdown", startMusic, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", startMusic);
+      mixerRef.current?.dispose();
+      mixerRef.current = null;
+    };
+  }, [playthroughId]);
 
   async function onPickPhoto(file: File | null) {
     if (!file) return;

@@ -24,6 +24,9 @@ export interface GenerateImageOptions {
   previousImage?: { data: Buffer; mime: string };
   shot?: "new" | "edit";
   timeoutMs?: number;
+  // client viewport drives this: portrait phones get portrait art so the
+  // stage shows the full frame instead of a center crop
+  aspectRatio?: "16:9" | "9:16" | "3:4" | "4:3" | "1:1" | "2:3" | "3:2" | "21:9";
 }
 
 // Edit shots have been measured at up to ~8s; the stage hides waits with
@@ -99,7 +102,7 @@ async function attempt(
       contents: [{ role: "user", parts: buildParts(opts, includeReferences) }],
       config: {
         responseModalities: ["IMAGE"],
-        imageConfig: { aspectRatio: "16:9", imageSize: "1K" },
+        imageConfig: { aspectRatio: opts.aspectRatio ?? "16:9", imageSize: "1K" },
         abortSignal: controller.signal,
       },
     });

@@ -95,6 +95,7 @@ export async function GET(
         name: row.name,
         visualTokens: sheet.visualTokens ?? DEFAULT_CHARACTER.visualTokens,
         personalityHints: sheet.personalityHints ?? DEFAULT_CHARACTER.personalityHints,
+        voiceStyle: sheet.voiceStyle,
         stats: sheet.stats ?? DEFAULT_CHARACTER.stats,
         portraitAssetId: row.portraitAssetId,
       };

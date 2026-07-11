@@ -15,6 +15,7 @@ interface SceneImageBody {
   referenceAssetIds?: string[];
   previousAssetId?: string;
   kind?: "scene" | "item" | "portrait" | "ui";
+  aspect?: "16:9" | "9:16" | "3:4" | "4:3" | "1:1" | "2:3" | "3:2" | "21:9";
 }
 
 export async function POST(req: Request) {
@@ -69,6 +70,7 @@ export async function POST(req: Request) {
       referenceImages,
       previousImage,
       shot: body.shot,
+      aspectRatio: body.aspect,
     });
 
     const dataUrl = `data:${image.mime};base64,${image.data.toString("base64")}`;

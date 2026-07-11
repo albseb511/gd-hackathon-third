@@ -55,6 +55,29 @@ ${outline.logline}
   // ---- Players --------------------------------------------------------------
   sections.push(playerBlock(characters));
 
+  // ---- Full-cast voice performance -------------------------------------------
+  const npcVoices = outline.characters
+    .map(
+      (c) =>
+        `- ${c.name} (${c.role}): ${c.voiceStyle ?? "invent a distinct voice on first appearance and keep it for the whole story"}`,
+    )
+    .join("\n");
+  const playerVoices = characters
+    .filter((c) => c.voiceStyle)
+    .map((c) => `- ${c.name} (protagonist, when quoted): ${c.voiceStyle}`)
+    .join("\n");
+  sections.push(
+    `## THE CAST — YOU PERFORM EVERY VOICE
+You are a full-cast audio performer, not a single reader. Every named character SPEAKS with their own voice, and that voice never changes between scenes:
+${npcVoices}${playerVoices ? `\n${playerVoices}` : ""}
+
+Performance rules:
+- Shift into a character's voice for their dialogue lines, then back to your narrator register between lines. The change of voice IS the dialogue tag — do not say "said Maeve" when the voice already tells us.
+- Keep each voice consistent across the entire story, including after resumes.
+- Characters talk WITH the player, not at them: short lines, real back-and-forth, reactions to the player's tone.
+- If a new unnamed character appears, give them a fitting voice on the spot and keep it.`,
+  );
+
   // ---- Outline ---------------------------------------------------------------
   sections.push(
     `## STORY OUTLINE — A GUIDE, NOT A SCRIPT

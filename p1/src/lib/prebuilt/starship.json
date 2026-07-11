@@ -7,17 +7,20 @@
     {
       "name": "Dr. Aris Thorne",
       "role": "Chief Medical Officer",
-      "visualDescription": "A lean man in his late fifties with sharp, cadaverous cheekbones and hollow eyes, wearing a grease-stained white lab coat over a torn grey turtleneck. He has a nervous tic of spinning a cracked locket containing a flickering green hologram of Earth."
+      "visualDescription": "A lean man in his late fifties with sharp, cadaverous cheekbones and hollow eyes, wearing a grease-stained white lab coat over a torn grey turtleneck. He has a nervous tic of spinning a cracked locket containing a flickering green hologram of Earth.",
+      "voiceStyle": "High-pitched and reedy, delivered in rapid, halting bursts with a dry, breathy texture, colored by a clipped British RP accent, and punctuated by an involuntary tongue click 'tsk' before starting sentences."
     },
     {
       "name": "Chief Engineer Valeria Vance",
       "role": "Lead Engineer",
-      "visualDescription": "A broad-shouldered woman with a grease-smeared face and a brown undercut hairstyle. She wears heavy canvas jumpsuits covered in safety patches, with tools hanging from a frayed utility belt, and is missing her left pinky finger, which has been replaced by a polished brass prosthetic cap."
+      "visualDescription": "A broad-shouldered woman with a grease-smeared face and a brown undercut hairstyle. She wears heavy canvas jumpsuits covered in safety patches, with tools hanging from a frayed utility belt, and is missing her left pinky finger, which has been replaced by a polished brass prosthetic cap.",
+      "voiceStyle": "Low-pitched and resonant, spoken at a slow, deliberate pace with a gravelly, smoke-rasped texture, shaped by a rough Australian drawl, and frequently ending phrases with a gruff, rhetorical '...yeah?'"
     },
     {
       "name": "Security Officer Marcus Kane",
       "role": "Head of Security",
-      "visualDescription": "A tall, imposing figure with a scarred jawline, wearing a dusty blue tactical vest and dark cargo pants. He has a twitching cybernetic amber eye that glows with varying intensity and constantly grips a heavy, matte-black electric shock baton."
+      "visualDescription": "A tall, imposing figure with a scarred jawline, wearing a dusty blue tactical vest and dark cargo pants. He has a twitching cybernetic amber eye that glows with varying intensity and constantly grips a heavy, matte-black electric shock baton.",
+      "voiceStyle": "Mid-range and completely flat, spoken in a clipped, staccato military cadence with a harsh, metallic rasp, featuring a hard Midwestern American accent, and interrupted by a low, mechanical-sounding throat clear 'hmmm' when agitated."
     }
   ],
   "acts": [

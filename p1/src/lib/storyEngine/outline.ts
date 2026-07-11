@@ -88,6 +88,7 @@ function makeOutlineSchema(k: SchemaKnobs) {
             name: z.string().min(1),
             role: z.string().min(1),
             visualDescription: z.string().min(1),
+            voiceStyle: z.string().optional(),
           }),
         )
         .min(k.minChars)
@@ -178,8 +179,13 @@ const outlineG: Schema = {
             description:
               "Vivid, image-model-ready: face, build, wardrobe, one unforgettable detail.",
           },
+          voiceStyle: {
+            type: Type.STRING,
+            description:
+              "How they SOUND, performable by a voice actor: pitch, pace, texture, accent flavor, one verbal tic. E.g. 'low gravel, slow, ex-smoker rasp, drops the ends of sentences'.",
+          },
         },
-        required: ["name", "role", "visualDescription"],
+        required: ["name", "role", "visualDescription", "voiceStyle"],
       },
     },
     acts: {
@@ -228,7 +234,7 @@ Return JSON matching the response schema. Requirements:
 
 - title, genre, and a 1-2 sentence logline with a hook.
 - artStyle: MUST begin with EXACTLY this string: "${BASE_ART_STYLE}". You may append a comma and a short palette phrase drawn from the premise (e.g. ", rain-slick neon noir palette"). Nothing else.
-- characters: 3-5 vivid NPCs (never the player). visualDescription must be usable directly by an image model: face, build, wardrobe, one unforgettable detail.
+- characters: 3-5 vivid NPCs (never the player). visualDescription must be usable directly by an image model: face, build, wardrobe, one unforgettable detail. voiceStyle must be performable by a voice actor: pitch, pace, texture, accent flavor, one verbal tic — make each voice unmistakably distinct from the others.
 - acts: exactly 3 (setup / escalation / climax), each with a goal and 4-6 beats.
 - Beat ids: short unique slugs like "a1_docks". Every leadsTo, winBeat, and loseBeat MUST reference an existing beat id (or an ending id, only from act-3 beats).
 - BRANCHING: at least 4 beats must lead to 2-3 DIFFERENT places (leadsTo with 2-3 ids). The story must feel like a web, not a corridor.

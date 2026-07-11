@@ -7,17 +7,20 @@
     {
       "name": "Garrick Stone-Eye",
       "role": "Stubborn Clan Chieftain",
-      "visualDescription": "A stocky, weathered dwarf-kin with a massive gray beard braided with bronze wire, wearing heavy wool coats over iron-plated leather armor, and sporting a polished brass eyepatch shaped like a sleeping dragon."
+      "visualDescription": "A stocky, weathered dwarf-kin with a massive gray beard braided with bronze wire, wearing heavy wool coats over iron-plated leather armor, and sporting a polished brass eyepatch shaped like a sleeping dragon.",
+      "voiceStyle": "Deep, low-baritone pitch; slow and deliberate pace; extremely gravelly and chesty texture; thick, rolling Scottish-inspired highland brogue accent; frequently grunts a sharp 'Hmph!' before making a point."
     },
     {
       "name": "Maeve the Brewer",
       "role": "Skeptic Alchemist and Herbalist",
-      "visualDescription": "A tall, wire-strong woman with sharp, bird-like features and ink-stained fingers, clad in a heavy linen apron covered in herbal stains, carrying a clinking bandolier of glowing amber vials."
+      "visualDescription": "A tall, wire-strong woman with sharp, bird-like features and ink-stained fingers, clad in a heavy linen apron covered in herbal stains, carrying a clinking bandolier of glowing amber vials.",
+      "voiceStyle": "Mid-range, dry alto pitch; fast, clipped, and precise pace; crisp, slightly raspy texture; sharp Yorkshire-style northern English accent; habitually clicks her tongue 'Tch' when expressing doubt."
     },
     {
       "name": "Odin of the Deep Mine",
       "role": "Nervous Young Excavator",
-      "visualDescription": "A lanky youth with wide soot-smeared brown eyes, wearing oversized leather overalls, nervously clutching a bronze tuning fork that vibrates with a low, constant hum."
+      "visualDescription": "A lanky youth with wide soot-smeared brown eyes, wearing oversized leather overalls, nervously clutching a bronze tuning fork that vibrates with a low, constant hum.",
+      "voiceStyle": "High-tenor, youthful pitch; rapid, breathless pace with sudden hesitant pauses; airy, trembling texture; soft, lilting West Country accent; constantly prefaces his sentences with a nervous, drawn-out 'Well, um...'."
     }
   ],
   "acts": [

@@ -9,8 +9,8 @@ const MOOD_FALLBACK: Record<string, string> = {
   item_closeup: "explore",
 };
 
-const DUCK_DB = 0.35; // linear gain while narrator speaks
-const BASE_GAIN = 0.55;
+const DUCK_DB = 0.22; // linear gain while narrator speaks
+const BASE_GAIN = 0.38;
 const XFADE_S = 2;
 
 export class MusicMixer {

@@ -32,6 +32,9 @@ export interface OutlineCharacter {
   name: string;
   role: string;
   visualDescription: string;
+  // how this character SOUNDS — the narrator performs them with this voice,
+  // consistently, every time they speak
+  voiceStyle?: string;
 }
 
 export interface StoryOutline {
@@ -54,6 +57,7 @@ export interface CharacterSheet {
   name: string;
   visualTokens: string;
   personalityHints: string;
+  voiceStyle?: string; // how the player character sounds when quoted
   stats: { might: number; wit: number; charm: number }; // 1..5
 }
 

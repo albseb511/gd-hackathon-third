@@ -35,6 +35,7 @@ const PORTRAIT_PROMPT =
 const sheetPayloadZ = z.object({
   visualTokens: z.string().min(1),
   personalityHints: z.string().min(1),
+  voiceStyle: z.string().min(1),
   stats: z.object({
     might: z.number(),
     wit: z.number(),
@@ -54,6 +55,11 @@ const sheetG: Schema = {
       type: Type.STRING,
       description: "One short line of playable personality traits.",
     },
+    voiceStyle: {
+      type: Type.STRING,
+      description:
+        "How this character SOUNDS when quoted, performable by a voice actor: pitch, pace, texture, one verbal tic.",
+    },
     stats: {
       type: Type.OBJECT,
       description:
@@ -66,8 +72,8 @@ const sheetG: Schema = {
       required: ["might", "wit", "charm"],
     },
   },
-  required: ["visualTokens", "personalityHints", "stats"],
-  propertyOrdering: ["visualTokens", "personalityHints", "stats"],
+  required: ["visualTokens", "personalityHints", "voiceStyle", "stats"],
+  propertyOrdering: ["visualTokens", "personalityHints", "voiceStyle", "stats"],
 };
 
 const clampStat = (n: number) => Math.max(1, Math.min(5, Math.round(n)));
@@ -87,6 +93,9 @@ Rules:
     hasPhoto ? " Describe the person in the photo faithfully." : ""
   }
 - personalityHints: one short line of playable traits, grounded in the self-description${
+    hasPhoto ? " and the photo's vibe" : ""
+  }.
+- voiceStyle: how this character sounds when quoted, performable by a voice actor — pitch, pace, texture, one verbal tic. Ground it in the self-description${
     hasPhoto ? " and the photo's vibe" : ""
   }.
 - stats: might, wit, charm — integers 1-5 each, summing to 9-11. Justify the spread by the self-description${
@@ -128,6 +137,7 @@ async function generateSheet(
     name,
     visualTokens: payload.visualTokens,
     personalityHints: payload.personalityHints,
+    voiceStyle: payload.voiceStyle,
     stats: {
       might: clampStat(payload.stats.might),
       wit: clampStat(payload.stats.wit),

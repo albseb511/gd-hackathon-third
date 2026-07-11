@@ -24,6 +24,8 @@ export interface DirectorVerdict {
   missedScene: { imagePrompt: string; mood: string } | null;
   missedChoices: string[] | null;
   socialPatch: NarratorPatch | null;
+  spokeSuggestions: boolean; // narrator voiced the player's options aloud
+  trueMood: string | null; // emotional beat of the turn, drives the score
 }
 
 const RESPONSE_SCHEMA = {
@@ -67,8 +69,18 @@ const RESPONSE_SCHEMA = {
         "Only when the player's words/manner would genuinely shift how an NPC present in the scene feels. Usually empty.",
     },
     auraTraitsAdd: { type: Type.ARRAY, items: { type: Type.STRING } },
+    spokeSuggestions: {
+      type: Type.BOOLEAN,
+      description:
+        "true if the narrator voiced the player's possible actions aloud (listed options, 'you could X or Y', 'do you A or B?'). Ending on tension without naming actions is fine.",
+    },
+    trueMood: {
+      type: Type.STRING,
+      enum: ["intro", "explore", "calm", "tense", "combat", "tragic", "triumphant"],
+      description: "The dominant emotional beat of this turn.",
+    },
   },
-  required: ["continuityIssue", "sceneMissing", "choicesMissing"],
+  required: ["continuityIssue", "sceneMissing", "choicesMissing", "spokeSuggestions", "trueMood"],
 } as const;
 
 export async function runDirector(input: DirectorInput): Promise<DirectorVerdict> {
@@ -104,7 +116,9 @@ Judge:
 1. continuityIssue — be conservative; flag ONLY clear contradictions with state/bible, not stylistic drift or plausible improvisation.
 2. sceneMissing — true only if the turn narrated a visually NEW scene/location/major action AND render_scene was not called.
 3. choicesMissing — true only if the turn clearly ended by offering the player distinct options AND present_choices was not called.
-4. relationshipDeltas / auraTraitsAdd — from the PLAYER's words and manner toward NPCs in the scene, when clearly warranted. Rude or warm behavior shifts scores by 1, betrayals/heroics by 2. Usually empty.`;
+4. relationshipDeltas / auraTraitsAdd — from the PLAYER's words and manner toward NPCs in the scene, when clearly warranted. Rude or warm behavior shifts scores by 1, betrayals/heroics by 2. Usually empty.
+5. spokeSuggestions — true if the narrator named actions the player could take ("do you X or Y", "you could...", listed options aloud). The on-screen buttons carry options; the narrator must never voice them.
+6. trueMood — the dominant emotional beat of the turn (drives the musical score).`;
 
   const res = await withTiming("director", { model: MODELS.text }, () =>
     genai().models.generateContent({
@@ -127,6 +141,8 @@ Judge:
     choices?: string[];
     relationshipDeltas?: { npc: string; score: number; feeling: string; lastCause: string }[];
     auraTraitsAdd?: string[];
+    spokeSuggestions?: boolean;
+    trueMood?: string;
   };
   try {
     parsed = JSON.parse(res.text ?? "{}");
@@ -156,5 +172,7 @@ Judge:
     socialPatch: hasSocial
       ? { relationships, auraTraitsAdd: parsed.auraTraitsAdd }
       : null,
+    spokeSuggestions: Boolean(parsed.spokeSuggestions),
+    trueMood: parsed.trueMood ?? null,
   };
 }

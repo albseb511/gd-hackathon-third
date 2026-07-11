@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useScene } from "@/scene/store";
 import { captureViewport } from "@/components/viewport/capture";
 import { LiveConsultant } from "@/components/live/LiveConsultant";
+import { buildApartment, type ApartmentConfig } from "@/lib/apartment";
 
 interface Task { agent: string; status: string; applied: number; dropped: number; ms: number; startOffsetMs: number; reasoning: string; error?: string }
 interface Conflict { scope: string; winner: string; loser: string }
@@ -24,6 +25,29 @@ const RENDER_STYLES = [
 ];
 const REGIONS = ["Generic", "San Francisco, US", "London, UK", "Bangalore, IN", "Berlin, DE"];
 
+function Stepper({
+  label,
+  value,
+  suffix,
+  onDec,
+  onInc,
+}: {
+  label: string;
+  value: number;
+  suffix?: string;
+  onDec: () => void;
+  onInc: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-1 rounded-full border border-white/10 px-1.5 py-0.5 text-zinc-300">
+      <span className="text-zinc-500">{label}</span>
+      <button onClick={onDec} className="px-1 text-zinc-400 hover:text-white">−</button>
+      <span className="min-w-4 text-center tabular-nums">{value}{suffix}</span>
+      <button onClick={onInc} className="px-1 text-zinc-400 hover:text-white">+</button>
+    </div>
+  );
+}
+
 export function ControlPanel() {
   const design = useScene((s) => s.design);
   const load = useScene((s) => s.load);
@@ -35,6 +59,7 @@ export function ControlPanel() {
   const [busy, setBusy] = useState<null | "design" | "render" | "cost" | "photo">(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
+  const [apt, setApt] = useState<ApartmentConfig | null>(null);
   const [renders, setRenders] = useState<RenderItem[]>([]);
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [region, setRegion] = useState("Generic");
@@ -53,9 +78,18 @@ export function ControlPanel() {
       if (data.design) load(data.design);
       setTasks(data.tasks ?? []);
       setConflicts(data.conflicts ?? []);
+      setApt(data.apartmentConfig ?? null);
     } finally {
       setBusy(null);
     }
+  }
+
+  // Editing an assumption rebuilds the apartment instantly (buildApartment is pure).
+  function updateApt(patch: Partial<ApartmentConfig>) {
+    if (!apt) return;
+    const next = { ...apt, ...patch };
+    setApt(next);
+    load(buildApartment(next));
   }
 
   function fileToDataUrl(f: File): Promise<string> {
@@ -171,6 +205,25 @@ export function ControlPanel() {
           />
         </label>
       </div>
+
+      {/* Editable assumption chips (apartment briefs) */}
+      {apt && (
+        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-xs">
+          <div className="mb-2 font-medium text-zinc-300">Assumptions — tap to edit</div>
+          <div className="flex flex-wrap gap-1.5">
+            <Stepper label="Beds" value={apt.bedrooms} onDec={() => updateApt({ bedrooms: Math.max(1, apt.bedrooms - 1) })} onInc={() => updateApt({ bedrooms: Math.min(5, apt.bedrooms + 1) })} />
+            <Stepper label="Baths" value={apt.bathrooms} onDec={() => updateApt({ bathrooms: Math.max(1, apt.bathrooms - 1) })} onInc={() => updateApt({ bathrooms: Math.min(4, apt.bathrooms + 1) })} />
+            <button
+              onClick={() => updateApt({ balcony: !apt.balcony })}
+              className={`rounded-full border px-2.5 py-1 ${apt.balcony ? "border-emerald-500/50 text-emerald-300" : "border-white/10 text-zinc-400"}`}
+            >
+              Balcony {apt.balcony ? "✓" : "✕"}
+            </button>
+            <Stepper label="Plot W" value={apt.plotW} suffix="m" onDec={() => updateApt({ plotW: Math.max(5, apt.plotW - 1) })} onInc={() => updateApt({ plotW: Math.min(30, apt.plotW + 1) })} />
+            <Stepper label="Plot D" value={apt.plotD} suffix="m" onDec={() => updateApt({ plotD: Math.max(5, apt.plotD - 1) })} onInc={() => updateApt({ plotD: Math.min(30, apt.plotD + 1) })} />
+          </div>
+        </div>
+      )}
 
       {/* Agent task ledger */}
       {tasks.length > 0 && (

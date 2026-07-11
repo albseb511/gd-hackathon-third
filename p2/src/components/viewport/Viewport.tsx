@@ -13,8 +13,10 @@ import { roomBounds } from "@/scene/defaults";
 import { CAMERA_FOV_DEG, viewPose, type Bounds } from "./camera-rig";
 import { RoomMesh } from "./RoomMesh";
 import { FurnitureMesh } from "./FurnitureMesh";
+import { Labels } from "./Labels";
 import { registerCanvas } from "./capture";
 import { registerControls, registerFly } from "./cameraBus";
+import { useView } from "./viewStore";
 
 function FitCamera({ bounds, fitKey }: { bounds: Bounds; fitKey: string }) {
   const controls = useRef<ComponentRef<typeof CameraControls>>(null);
@@ -58,6 +60,7 @@ export default function Viewport() {
   const design = useScene((s) => s.design);
   const selectedId = useScene((s) => s.selectedId);
   const select = useScene((s) => s.select);
+  const xray = useView((s) => s.xray);
   const bounds = roomBounds(design);
   const { w, d, h } = design.room.dims;
 
@@ -91,10 +94,11 @@ export default function Viewport() {
           <pointLight key={l.id} position={l.pos!} intensity={l.intensity} color={l.color ?? "#fff2d6"} distance={10} />
         ))}
 
-      <RoomMesh design={design} />
+      <RoomMesh design={design} xray={xray} />
       {design.furniture.map((f) => (
         <FurnitureMesh key={f.id} item={f} selected={f.id === selectedId} onSelect={select} />
       ))}
+      <Labels />
 
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.001, 0]} receiveShadow>
         <planeGeometry args={[200, 200]} />

@@ -560,7 +560,30 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
           missedScene: { imagePrompt: string; mood: string } | null;
           missedChoices: string[] | null;
           socialPatch: NarratorPatch | null;
+          spokeSuggestions?: boolean;
+          trueMood?: string | null;
         };
+        // the score follows the real emotional beat, even when the narrator
+        // didn't call render_scene this turn
+        if (v.trueMood) {
+          setMood(v.trueMood as Mood);
+          void mixerRef.current?.play(v.trueMood);
+        }
+        if (v.spokeSuggestions) {
+          sessionRef.current?.sendClientContent({
+            turns: [
+              {
+                role: "user",
+                parts: [
+                  {
+                    text: "[STYLE] You spoke the player's options aloud again. Never do that — the buttons on screen carry the options. End on tension and go silent.",
+                  },
+                ],
+              },
+            ],
+            turnComplete: false,
+          });
+        }
         if (v.continuityIssue) {
           // steer the narrator in-fiction; state stays the source of truth
           sessionRef.current?.sendClientContent({

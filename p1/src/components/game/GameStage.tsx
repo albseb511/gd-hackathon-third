@@ -103,6 +103,13 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
   const speculativeRef = useRef<Map<string, Promise<{ dataUrl: string; assetId: string | null } | null>>>(
     new Map(),
   );
+  // predictive beat prefetch: outline beatId → in-flight/settled image
+  const beatCacheRef = useRef<Map<string, Promise<{ dataUrl: string; assetId: string | null } | null>>>(
+    new Map(),
+  );
+  // what the player said since the narrator last finished a turn
+  const utteranceRef = useRef("");
+  const provisionalFiredRef = useRef(false);
 
   // render mirrors of ref-held game data
   const [data, setData] = useState<PlaythroughData | null>(null);
@@ -177,6 +184,59 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
     [],
   );
 
+  // one background image generation, cache-shaped; never touches UI state
+  const generateQuiet = useCallback(
+    (prompt: string, shot: "new" | "edit") => {
+      const data = dataRef.current;
+      if (!data) return Promise.resolve(null);
+      return fetch("/api/scene-image", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          prompt,
+          artStyle: data.outline.artStyle,
+          shot,
+          previousAssetId: shot === "edit" ? lastAssetIdRef.current : undefined,
+          referenceAssetIds: data.characters
+            .map((c) => c.portraitAssetId)
+            .filter((x): x is string => Boolean(x)),
+          playthroughId,
+        }),
+      })
+        .then((r) => (r.ok ? (r.json() as Promise<{ dataUrl: string; assetId: string | null }>) : null))
+        .catch(() => null);
+    },
+    [playthroughId],
+  );
+
+  // Predictive prefetch: after each narrator turn, pre-paint the outline
+  // beats reachable from where the player stands. When the narrator later
+  // calls render_scene for one of them, the frame is already here.
+  const prefetchNextBeats = useCallback(() => {
+    const data = dataRef.current;
+    const beatId = stateRef.current?.beatId;
+    if (!data || !beatId || !lastAssetIdRef.current) return;
+    const beat = data.outline.acts.flatMap((a) => a.beats).find((b) => b.id === beatId);
+    if (!beat) return;
+    const targets = beat.leadsTo.slice(0, 3);
+    for (const targetId of targets) {
+      if (beatCacheRef.current.has(targetId)) continue;
+      const target = data.outline.acts.flatMap((a) => a.beats).find((b) => b.id === targetId);
+      if (!target) continue;
+      beatCacheRef.current.set(
+        targetId,
+        generateQuiet(
+          `${target.sceneHint}. Continuation of the ongoing story, same protagonist.`,
+          "edit",
+        ),
+      );
+    }
+    // keep the cache small — drop entries not reachable from here
+    for (const key of [...beatCacheRef.current.keys()]) {
+      if (!targets.includes(key) && key !== beatId) beatCacheRef.current.delete(key);
+    }
+  }, [generateQuiet]);
+
   // release the opening audio gate: flush anything queued and play live after
   const releaseAudioGate = useCallback(() => {
     const gate = audioGateRef.current;
@@ -199,6 +259,30 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
       if (typeof args.beat_id === "string" && stateRef.current) {
         stateRef.current = applyNarratorPatch(stateRef.current, {}, args.beat_id);
         persistBeat({ statePatch: { state: stateRef.current } });
+      }
+      // predictive cache: if this beat was prefetched, the frame is instant
+      if (typeof args.beat_id === "string" && beatCacheRef.current.has(args.beat_id)) {
+        const cached = await beatCacheRef.current.get(args.beat_id)!;
+        beatCacheRef.current.delete(args.beat_id);
+        if (cached?.dataUrl && renderSeqRef.current === seq) {
+          lastScenePromptRef.current = String(args.image_prompt ?? "");
+          setImageUrl(cached.dataUrl);
+          playSfx("whoosh");
+          releaseAudioGate();
+          if (cached.assetId) lastAssetIdRef.current = cached.assetId;
+          const idx = sceneIdxRef.current++;
+          persistBeat({
+            scene: {
+              idx,
+              beatId: args.beat_id,
+              imagePrompt: args.image_prompt,
+              imageAssetId: cached.assetId,
+            },
+            marks: [{ name: "image-on-screen", ms: Math.round(performance.now() - t0) }],
+          });
+          setGenerating(false);
+          return;
+        }
       }
       try {
         const res = await fetch("/api/scene-image", {
@@ -272,6 +356,46 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
     },
     [persistBeat, playthroughId, releaseAudioGate],
   );
+
+  // Provisional frame from the player's OWN words: the scene starts moving
+  // the moment the narrator starts answering, without waiting for its
+  // render_scene call. A canonical frame that lands later simply replaces it.
+  const fireProvisionalFrame = useCallback(() => {
+    if (provisionalFiredRef.current) return;
+    const said = utteranceRef.current.trim();
+    if (said.length < 8 || !lastScenePromptRef.current) return;
+    provisionalFiredRef.current = true;
+    const seq = renderSeqRef.current;
+
+    // 1) did they effectively pick a pre-rendered branch out loud?
+    const norm = (s: string) =>
+      s.toLowerCase().replace(/[^a-z0-9 ]/g, "").split(/\s+/).filter((w) => w.length > 3);
+    const saidWords = new Set(norm(said));
+    for (const [option, promise] of speculativeRef.current) {
+      const ow = norm(option);
+      if (ow.length && ow.filter((w) => saidWords.has(w)).length / ow.length >= 0.5) {
+        void promise.then((img) => {
+          if (img?.dataUrl && renderSeqRef.current === seq) {
+            setImageUrl(img.dataUrl);
+            playSfx("whoosh");
+            if (img.assetId) lastAssetIdRef.current = img.assetId;
+          }
+        });
+        return;
+      }
+    }
+
+    // 2) otherwise paint the immediate consequence of what they said
+    void generateQuiet(
+      `${lastScenePromptRef.current}. The player just said or did: "${said.slice(0, 160)}" — show the immediate consequence in the same scene.`,
+      "edit",
+    ).then((img) => {
+      if (img?.dataUrl && renderSeqRef.current === seq) {
+        setImageUrl(img.dataUrl);
+        if (img.assetId) lastAssetIdRef.current = img.assetId;
+      }
+    });
+  }, [generateQuiet]);
 
   const handleToolCall = useCallback(
     (msg: LiveServerMessage) => {
@@ -507,6 +631,8 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
               } else {
                 audio.playChunk(part.inlineData.data);
               }
+              // narrator has started answering — the player's words are final
+              if (utteranceRef.current) fireProvisionalFrame();
             }
             if (sc?.outputTranscription?.text) {
               captionRef.current += sc.outputTranscription.text;
@@ -521,10 +647,13 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
             }
             if (sc?.inputTranscription?.text) {
               // player spoke: clear stale choices, mark for latency,
-              // accumulate for the director's social read
+              // accumulate for the director's social read + provisional frame
               speechEndMarkRef.current = performance.now();
               lastPlayerTextRef.current =
                 (lastPlayerTextRef.current + " " + sc.inputTranscription.text).slice(-500);
+              utteranceRef.current =
+                (utteranceRef.current + " " + sc.inputTranscription.text).slice(-300);
+              provisionalFiredRef.current = false;
               setChoices([]);
             }
             if (m.toolCall) handleToolCall(m);
@@ -546,12 +675,16 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
                 pendingChoicesRef.current = null;
               }
               releaseAudioGate(); // safety: never gate past the first turn
+              utteranceRef.current = "";
+              provisionalFiredRef.current = false;
               if (narration) {
                 persistBeat({
                   scene: { idx: Math.max(0, sceneIdxRef.current - 1), narration },
                 });
                 void runDirectorPass(narration);
               }
+              // pre-paint wherever the story can go next
+              prefetchNextBeats();
             }
             if (m.goAway) {
               // server is about to close: reconnect seamlessly with the handle
@@ -571,7 +704,7 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
       sessionRef.current = session;
       return session;
     },
-    [playthroughId, audio, handleToolCall, persistBeat, runDirectorPass, releaseAudioGate],
+    [playthroughId, audio, handleToolCall, persistBeat, runDirectorPass, releaseAudioGate, fireProvisionalFrame, prefetchNextBeats],
   );
   useEffect(() => {
     connectRef.current = connect;
@@ -636,6 +769,8 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
   const sendText = useCallback((text: string) => {
     speechEndMarkRef.current = performance.now();
     lastPlayerTextRef.current = text;
+    utteranceRef.current = text;
+    provisionalFiredRef.current = false;
     setChoices([]);
     sessionRef.current?.sendClientContent({
       turns: [{ role: "user", parts: [{ text }] }],
@@ -646,7 +781,9 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
     (option: string) => {
       playSfx("tap");
       sendText(`I choose: ${option}`);
-      // instant scene swap if this branch's image is already rendered
+      // instant scene swap if this branch's image is already rendered;
+      // the provisional path is redundant for button picks
+      provisionalFiredRef.current = true;
       const spec = speculativeRef.current.get(option);
       speculativeRef.current = new Map();
       void spec?.then((img) => {

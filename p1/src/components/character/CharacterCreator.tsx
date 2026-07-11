@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MusicMixer, bankForGenre } from "@/components/audio/mixer";
+import CameraCapture from "./CameraCapture";
 import type { CharacterSheet, Stat } from "@/lib/storyEngine/types";
 import "@/components/game/overlays.css";
 
@@ -92,6 +93,7 @@ export default function CharacterCreator({
   const [stage, setStage] = useState(0);
   const [result, setResult] = useState<CreateResult | null>(null);
   const [portraitIn, setPortraitIn] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const stageTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const mixerRef = useRef<MusicMixer | null>(null);
@@ -137,6 +139,11 @@ export default function CharacterCreator({
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not read that image.");
     }
+  }
+
+  function onWebcamCapture(blob: Blob) {
+    setShowCamera(false);
+    void onPickPhoto(new File([blob], "webcam.jpg", { type: "image/jpeg" }));
   }
 
   async function create() {
@@ -313,6 +320,18 @@ export default function CharacterCreator({
                 onChange={(e) => onPickPhoto(e.target.files?.[0] ?? null)}
               />
             </label>
+
+            <button
+              type="button"
+              onClick={() => setShowCamera(true)}
+              className="rounded-full border px-5 py-2 text-xs uppercase tracking-[0.2em]"
+              style={{
+                borderColor: "rgba(217,179,108,0.35)",
+                color: "rgba(242,232,213,0.7)",
+              }}
+            >
+              ◉ use camera
+            </button>
 
             <input
               className="cc-input"
@@ -495,6 +514,10 @@ export default function CharacterCreator({
           </section>
         )}
       </main>
+
+      {showCamera && (
+        <CameraCapture onCapture={onWebcamCapture} onClose={() => setShowCamera(false)} />
+      )}
     </div>
   );
 }

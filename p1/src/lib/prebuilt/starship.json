@@ -1,0 +1,277 @@
+{
+  "title": "Starship",
+  "genre": "Sci-Fi Suspense Thriller",
+  "artStyle": "hand-painted graphic novel realism — realistic proportions and lighting rendered in flat painterly cel-shaded panels, bold shadows, muted cinematic palette, retro-futurist NASA-punk palette",
+  "logline": "As a sabotaged colony ship drifts into deep space with only six hours of oxygen left, a suspicious skeleton crew must locate their missing captain and catch a killer before they all freeze in the dark.",
+  "characters": [
+    {
+      "name": "Dr. Aris Thorne",
+      "role": "Chief Medical Officer",
+      "visualDescription": "A lean man in his late fifties with sharp, cadaverous cheekbones and hollow eyes, wearing a grease-stained white lab coat over a torn grey turtleneck. He has a nervous tic of spinning a cracked locket containing a flickering green hologram of Earth."
+    },
+    {
+      "name": "Chief Engineer Valeria Vance",
+      "role": "Lead Engineer",
+      "visualDescription": "A broad-shouldered woman with a grease-smeared face and a brown undercut hairstyle. She wears heavy canvas jumpsuits covered in safety patches, with tools hanging from a frayed utility belt, and is missing her left pinky finger, which has been replaced by a polished brass prosthetic cap."
+    },
+    {
+      "name": "Security Officer Marcus Kane",
+      "role": "Head of Security",
+      "visualDescription": "A tall, imposing figure with a scarred jawline, wearing a dusty blue tactical vest and dark cargo pants. He has a twitching cybernetic amber eye that glows with varying intensity and constantly grips a heavy, matte-black electric shock baton."
+    }
+  ],
+  "acts": [
+    {
+      "id": "act1",
+      "goal": "Investigate the engine room's sabotage and track down the missing captain's security beacon.",
+      "beats": [
+        {
+          "id": "a1_bridge",
+          "summary": "The bridge is bathed in blood-red auxiliary emergency lighting as the primary computer registers a fatal drive failure and a missing captain. Officer Kane demands an immediate lockdown, while Engineer Vance insists on routing all emergency batteries to the life-support grid.",
+          "sceneHint": "The claustrophobic command bridge. Kane stands near the central map table, pointing a gloved finger at Vance, who is hunched over a sparking, open console panel. High-contrast red and orange shadows stretch across the metallic bulkhead.",
+          "choiceHints": [
+            "Support Kane's aggressive security lockdown to trap the suspected saboteur.",
+            "Override the security locks to assist Vance in patching auxiliary power to life support."
+          ],
+          "leadsTo": [
+            "a1_reactor",
+            "a1_quarters"
+          ]
+        },
+        {
+          "id": "a1_reactor",
+          "summary": "A ruptured plasma coolant pipe is flooding the reactor sector with volatile toxic gases, blocking access to the life support controls. A risky non-combat gamble is required to manually seal the emergency pressure valve against the blistering heat before the entire deck becomes irradiated.",
+          "sceneHint": "Deep in the underbelly of the ship. Vance, wearing a heavy respirator mask, shields her eyes as green, glowing coolant leaks hiss from a fractured overhead pipe, casting a sickly luminescence on the steel walkway.",
+          "choiceHints": [
+            "Attempt a high-risk manual seal of the valve using brute force (Might Check).",
+            "Siphon the radiation leak into the auxiliary battery arrays to buy time (Wit Check)."
+          ],
+          "leadsTo": [
+            "a1_quarters",
+            "a1_sabotage_revealed"
+          ]
+        },
+        {
+          "id": "a1_quarters",
+          "summary": "Inside the captain's private quarters, a search reveals signs of a violent struggle, blood splatters, and a hidden terminal showing a decrypted log of illegal fuel smuggling. Dr. Thorne is found hiding inside a ventilation access hatch, clutching a bloodied scalpel.",
+          "sceneHint": "A small, ransacked metallic cabin. Books and dataps are scattered on the floor, lit only by a single swinging desk lamp. Thorne is half-out of a ceiling ventilation grate, his face pale and eyes wide with panic.",
+          "choiceHints": [
+            "Disarm Thorne immediately by force and demand answers.",
+            "Negotiate with Thorne, offering protection in exchange for what he knows about the Captain's smuggling ring."
+          ],
+          "leadsTo": [
+            "a1_sabotage_revealed",
+            "a1_interrogation"
+          ]
+        },
+        {
+          "id": "a1_sabotage_revealed",
+          "summary": "The captain's severed tracking collar is found wired directly into the main life support matrix, indicating he was murdered to rig the oxygen scrubbing system to self-destruct.",
+          "sceneHint": "A narrow maintenance corridor filled with exposed bundles of wiring. In the center of the panel sits a metallic collar glowing with a rhythmic yellow emergency beacon, spliced roughly into the life support wiring.",
+          "choiceHints": [
+            "Cut the main wires to stop the countdown, risking a partial deck depressurization.",
+            "Attempt to slowly bypass the bomb circuitry with a delicate override."
+          ],
+          "leadsTo": [
+            "a2_confrontation"
+          ]
+        },
+        {
+          "id": "a1_interrogation",
+          "summary": "Kane traps Thorne in a holding cell and prepares to use extreme, unlawful physical interrogation techniques to extract the saboteur's identity, believing Thorne is the main culprit.",
+          "sceneHint": "A stark, steel-walled holding room. Thorne sits bound to a metal chair under a harsh, focused white spotlight. Kane towers over him, tapping his heavy shock baton against his open palm.",
+          "choiceHints": [
+            "Allow Kane's interrogation to proceed to find the saboteur quickly.",
+            "Intervene physically to protect Thorne, risking Kane's deep mistrust."
+          ],
+          "leadsTo": [
+            "a2_confrontation",
+            "a2_confinement"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "act2",
+      "goal": "Secure the ship's backup atmospheric systems while surviving escalating internal conflict and environmental disasters.",
+      "beats": [
+        {
+          "id": "a2_confrontation",
+          "summary": "An argument erupts in the central corridor when Vance discovers Kane possesses the exact subgrid master key used to disable the engine controls, while Kane accuses Vance of fabricating the evidence to frame him.",
+          "sceneHint": "The central hub corridor. Vance points a heavy hydraulic wrench at Kane's chest, while Kane has his hand hovering over his holstered sidearm. Dr. Thorne stands in the background, tense, clutching the wall.",
+          "choiceHints": [
+            "Side with Vance and demand Kane hand over his master keycard.",
+            "Side with Kane and order Vance to stand down, keeping the peace."
+          ],
+          "leadsTo": [
+            "a2_reactor_fire",
+            "a2_stealth_hunt"
+          ]
+        },
+        {
+          "id": "a2_reactor_fire",
+          "summary": "A sudden, massive backfire in the main engine conduit triggers an explosive wave of superheated gas that races down the corridor, threatening to incinerate Vance and seal off the primary oxygen tanks.",
+          "sceneHint": "A tight corridor filled with rushing orange flames and flying shrapnel. Vance is stumbling backward as a wall of fire erupts from an open ventilation duct.",
+          "choiceHints": [
+            "Dive through the closing blast doors to save the oxygen tanks, locking Vance outside.",
+            "Throw yourself into the path of the debris to pull Vance to safety behind a metal shield."
+          ],
+          "qte": {
+            "type": "sequence",
+            "stakes": "Failing the sequence results in severe structural damage and forces a retreat into the damaged habitation modules with half of the crew injured.",
+            "winBeat": "a2_life_support_lab",
+            "loseBeat": "a2_damaged_hab"
+          },
+          "leadsTo": [
+            "a2_life_support_lab",
+            "a2_damaged_hab"
+          ]
+        },
+        {
+          "id": "a2_stealth_hunt",
+          "summary": "With security drones activated and patrolling the dark hallways on Kane's orders, a stealthy infiltration is necessary to reach the auxiliary control deck. A risky non-combat gamble requires hacking the security subgrid without triggering the automated heavy turrets.",
+          "sceneHint": "A dark, pipe-lined maintenance shaft. The bright searchlights of a hovering security drone sweep past the grate, illuminating the damp metal walls in sharp blue sweeps.",
+          "choiceHints": [
+            "Attempt to silently bypass the automated drone sensors using precise timing (Stealth/Wit Check).",
+            "Deceive the ship security mainframe by spoofing Kane's credentials (Charm/Wit Check)."
+          ],
+          "leadsTo": [
+            "a2_life_support_lab",
+            "a2_confinement"
+          ]
+        },
+        {
+          "id": "a2_life_support_lab",
+          "summary": "Inside the bio-dome, Dr. Thorne is found destroying the remaining chemical oxygen canisters, weeping as he explains his belief that the colony ship is carrying a terminal bio-weapon to their destination.",
+          "sceneHint": "The lush, green bio-dome glowing under artificial sun-lamps, now clouded with thick white smoke from shattered canisters. Thorne stands by the edge of an elevated glass platform, throwing canisters into a recycling incinerator.",
+          "choiceHints": [
+            "Shoot Thorne to save the remaining canisters before they are incinerated.",
+            "Talk Thorne down by convincing him the colony's lives are worth saving regardless of the threat."
+          ],
+          "leadsTo": [
+            "a3_climax_start"
+          ]
+        },
+        {
+          "id": "a2_damaged_hab",
+          "summary": "Hull integrity collapses in the habitation block, sucking the ship's last emergency air supply into the void. You are forced to choose between sealing off the block with civilian colonists inside or sacrificing the remaining engine fuel to power the magnetic shields.",
+          "sceneHint": "A violently shaking room with cracked structural beams. Heavy wind shears howl through a small hull breach as red hazard lights spin wildly, casting a chaotic strobe effect over screaming colonists.",
+          "choiceHints": [
+            "Manually seal the airlock door, condemning the trapped colonists to save the ship's fuel.",
+            "Vent the main fuel lines into the shield grid to seal the breach, destroying any hope of restarting the engines."
+          ],
+          "leadsTo": [
+            "a3_climax_start",
+            "a2_confinement"
+          ]
+        },
+        {
+          "id": "a2_confinement",
+          "summary": "Trapped inside the automated holding block with failing life support, you must find a way to escape before the cell's atmosphere is completely drained. A risky non-combat gamble requires short-circuiting the door's high-voltage locking mechanism.",
+          "sceneHint": "A small cell with heavy reinforced glass doors. Frost is beginning to form on the corners of the windowpane as the interior temperature plummets and breathing becomes visibly difficult.",
+          "choiceHints": [
+            "Use a loose metal strip from the bunk to wedge open the high-voltage fuse box (Might/Wit Check).",
+            "Scream into the intercom to appeal to the guard's conscience and secure a manual override (Charm Check)."
+          ],
+          "leadsTo": [
+            "a3_climax_start"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "act3",
+      "goal": "Expose the mastermind, secure the emergency oxygen override, and decide the final fate of the Starship.",
+      "beats": [
+        {
+          "id": "a3_climax_start",
+          "summary": "The countdown enters its final minutes as the remaining crew gathers in the central control room. Kane reveals his true motives: he was hired by the corporate syndicate to destroy the ship for insurance, and he holds the primary bypass key.",
+          "sceneHint": "The central terminal hub. Kane stands by the main computer, aiming a heavy revolver at Vance and Thorne, with the flickering terminal behind him showing a countdown timer at 00:04:15.",
+          "choiceHints": [
+            "Charge Kane head-on to wrest the security key from his grasp.",
+            "Try to buy time by appealing to Kane's sense of duty, looking for a distraction."
+          ],
+          "leadsTo": [
+            "a3_repair_attempt",
+            "a3_showdown"
+          ]
+        },
+        {
+          "id": "a3_showdown",
+          "summary": "A brutal, desperate hand-to-hand fight erupts on the catwalk above the main reactor core as Kane fights to throw the override key into the burning plasma exhaust.",
+          "sceneHint": "A narrow, metal catwalk suspended over a swirling vortex of glowing blue reactor plasma. Sparks fly from damaged cables as Kane and the protagonist grapple near the safety railing.",
+          "choiceHints": [
+            "Use a nearby loose iron pipe to break Kane's guard.",
+            "Tackle Kane over the railing to secure the key, risking a lethal fall."
+          ],
+          "qte": {
+            "type": "mash",
+            "stakes": "Winning secures the control key to vent the reactor; failing forces you to fight for your life as the ship's hull begins to buckle under atmospheric collapse.",
+            "winBeat": "a3_bridge_control",
+            "loseBeat": "a3_airlock_struggle"
+          },
+          "leadsTo": [
+            "a3_bridge_control",
+            "a3_airlock_struggle"
+          ]
+        },
+        {
+          "id": "a3_repair_attempt",
+          "summary": "With Kane barricaded behind security glass, you must don a punctured spacesuit and step onto the ship's freezing hull to manually redirect the fuel cell flow, risking rapid decompression in the vacuum of space.",
+          "sceneHint": "Outside the hull of the starship. The massive, dark curve of the vessel is framed by a sea of cold, distant stars. Frost creeps across the visor of the helmet as air slowly hisses out from a chest tear.",
+          "choiceHints": [
+            "Reroute the main valves manually by pulling the freezing, high-pressure pipes (Might Check).",
+            "Hotwire the external mainframe using a bypassed computer interface (Wit Check)."
+          ],
+          "leadsTo": [
+            "a3_bridge_control",
+            "a3_airlock_struggle"
+          ]
+        },
+        {
+          "id": "a3_bridge_control",
+          "summary": "The central controls are secured, but the ship only has enough remaining power to either reboot the colony stasis pod chambers or send a single, clear distress signal to a distant, passing exploration vessel.",
+          "sceneHint": "The primary control terminal, now dark and silent except for a flashing prompt on the main screen. The bodies of the fallen crew are shadowed in the dim, cold light of the room.",
+          "choiceHints": [
+            "Divert all power to the stasis pods, saving the colonists but leaving them drifting indefinitely in silence.",
+            "Sacrifice the stasis pods to send an ultra-frequency distress signal, hoping for a rescue that may never arrive."
+          ],
+          "leadsTo": [
+            "end_triumphant",
+            "end_bittersweet"
+          ]
+        },
+        {
+          "id": "a3_airlock_struggle",
+          "summary": "As the main life support systems shut down entirely, the airlock seals fail, and the remaining crew members claw at the metal deck plates as the cold vacuum of deep space begins to drag them out.",
+          "sceneHint": "The airlock chamber. The massive outer door is cracked open, revealing a terrifying sliver of the black cosmos. Heavy storage crates and loose tools are sucked past into the dark void.",
+          "choiceHints": [
+            "Claw your way to the manual emergency seal lever, sacrificing yourself to lock the inner doors.",
+            "Hold onto the structural support beams and pray the automatic backup seals engage in time."
+          ],
+          "leadsTo": [
+            "end_bittersweet",
+            "end_tragic"
+          ]
+        }
+      ]
+    }
+  ],
+  "endings": [
+    {
+      "id": "end_triumphant",
+      "tone": "triumphant",
+      "condition": "flags.saboteur_exposed == true AND relationships.Vance_trust >= 2"
+    },
+    {
+      "id": "end_tragic",
+      "tone": "tragic",
+      "condition": "flags.ship_depressurized == true"
+    },
+    {
+      "id": "end_bittersweet",
+      "tone": "bittersweet",
+      "condition": "flags.saboteur_exposed == true AND flags.engine_sacrificed == true"
+    }
+  ]
+}

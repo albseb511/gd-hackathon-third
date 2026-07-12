@@ -41,10 +41,11 @@ export interface ScriptedStory {
 export const SCRIPTED_STORY_IDS = ["noir", "fantasy", "starship"] as const;
 export type ScriptedStoryId = (typeof SCRIPTED_STORY_IDS)[number];
 
-// The prebuilt ids whose scripts are fully rendered and committed. Only these
-// route to ScriptedStage; the rest fall back to the live GameStage until their
-// audio is generated (blocked on the TTS daily quota on the user's key).
-export const SCRIPTED_READY_IDS = ["starship"] as const;
+// The prebuilt ids whose scripts are fully rendered AND enabled for scripted
+// playback. Empty = every story plays LIVE (improvising narrator + live voice).
+// Starship's scripted assets stay committed; add "starship" here to re-enable
+// the instant/zero-cost scripted path.
+export const SCRIPTED_READY_IDS = [] as const;
 
 export function isScriptedStoryId(id: string): id is ScriptedStoryId {
   return (SCRIPTED_STORY_IDS as readonly string[]).includes(id);

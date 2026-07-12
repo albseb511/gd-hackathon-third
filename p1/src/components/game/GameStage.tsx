@@ -1450,8 +1450,30 @@ export default function GameStage({ playthroughId }: { playthroughId: string }) 
             }}
           />
           <div className="flex items-center gap-2 bg-black/40 rounded-full px-3 py-1.5 backdrop-blur text-zinc-300">
-            <span className={`w-2 h-2 rounded-full ${narratorSpeaking ? "bg-emerald-400 animate-pulse" : "bg-zinc-600"}`} />
-            {speakerInfo ? speakerInfo.speaker : narratorSpeaking ? "narrator" : "listening"}
+            {audio.micError ? (
+              <>
+                <span className="w-2 h-2 rounded-full bg-rose-500" />
+                mic blocked
+              </>
+            ) : narratorSpeaking ? (
+              <>
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                {speakerInfo ? speakerInfo.speaker : "narrator"}
+              </>
+            ) : (
+              <>
+                {/* live level: fills toward amber as it hears you speak */}
+                <span
+                  className="w-2 h-2 rounded-full"
+                  style={{
+                    background: audio.micLevel > 0.08 ? "#fbbf24" : "#52525b",
+                    transform: `scale(${1 + Math.min(1, audio.micLevel * 3)})`,
+                    transition: "transform 100ms, background 120ms",
+                  }}
+                />
+                {audio.micLevel > 0.08 ? "hearing you…" : "listening"}
+              </>
+            )}
           </div>
         </div>
       </div>

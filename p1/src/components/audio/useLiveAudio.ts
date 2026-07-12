@@ -15,14 +15,23 @@ export function useLiveAudio() {
   const [micError, setMicError] = useState<string | null>(null);
 
   const acquire = useCallback(async (deviceId: string | null) => {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
-        echoCancellation: true,
-        noiseSuppression: true,
-        channelCount: 1,
-      },
-    });
+    const base = {
+      echoCancellation: true,
+      noiseSuppression: true,
+      channelCount: 1,
+    };
+    // Prefer the saved device, but a stale/removed id makes getUserMedia throw
+    // (OverconstrainedError) or hand back a dead track — never let that leave
+    // the player with a silent mic. Fall back to the system default.
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: deviceId ? { ...base, deviceId: { exact: deviceId } } : base,
+      });
+    } catch (e) {
+      if (!deviceId) throw e;
+      stream = await navigator.mediaDevices.getUserMedia({ audio: base });
+    }
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = stream;
 
